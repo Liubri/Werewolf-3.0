@@ -22,6 +22,7 @@ export class Game {
   nightKillTarget: string | null = null;
   werewolfVotes: Map<string, string> = new Map(); // voterId -> targetId
   protectedTarget: string | null = null;
+  savedTarget: string | null = null;
   witchSaveUsedThisTurn: boolean = false;
   witchPoisonTarget: string | null = null;
   
@@ -111,7 +112,7 @@ export class Game {
     this.protectedTarget = null;
     this.witchSaveUsedThisTurn = false;
     this.witchPoisonTarget = null;
-    
+    this.savedTarget = null;
     this.players.forEach(p => p.resetNightStatus());
     
     // Notify players it's night
@@ -168,12 +169,14 @@ export class Game {
     this.protectedTarget = targetId;
   }
 
-  witchAction(playerId: string, action: 'SAVE' | 'POISON', targetId?: string) {
+  witchAction(playerId: string, action: 'SAVE' | 'POISON', targetId: string) {
     const player = this.players.get(playerId);
     if (!player || !(player.role instanceof Witch)) return;
-    
+    console.log("Has save potion", player.role.hasSavePotion);
+    console.log("Has poison potion", player.role.hasPoisonPotion);
     if (action === 'SAVE' && player.role.hasSavePotion) {
        this.witchSaveUsedThisTurn = true;
+       this.savedTarget = targetId;
        player.role.useSave();
     } else if (action === 'POISON' && player.role.hasPoisonPotion && targetId) {
        this.witchPoisonTarget = targetId;
@@ -191,18 +194,22 @@ export class Game {
 
   endNight() {
     // Resolve everything
-    const deadPlayers: string[] = [];
+    const deadPlayers: Set<string> = new Set();
 
     // Werewolf kill
     if (this.nightKillTarget) {
-      if (this.nightKillTarget !== this.protectedTarget && !this.witchSaveUsedThisTurn) {
-        deadPlayers.push(this.nightKillTarget);
+      if (this.nightKillTarget !== this.protectedTarget) {
+        deadPlayers.add(this.nightKillTarget);
       }
     }
 
     // Witch poison
     if (this.witchPoisonTarget) {
-      deadPlayers.push(this.witchPoisonTarget);
+      deadPlayers.add(this.witchPoisonTarget);
+    }
+
+    if (this.witchSaveUsedThisTurn && this.savedTarget) {
+      deadPlayers.delete(this.savedTarget);
     }
 
     // Apply deaths

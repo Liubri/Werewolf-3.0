@@ -64,7 +64,8 @@ io.on('connection', (socket) => {
       } else if (player.role.type === 'DREAMKEEPER') {
         player.role.handleNightAction(game, player, data.targetId);
       } else if (player.role.type === 'WITCH') {
-        game.witchAction(player.id, data.action, data.targetId);
+        player.role.handleNightAction(game, player, data.targetId, data);
+        console.log('Witch action handled:', data.potionType);
       }
     }
   });

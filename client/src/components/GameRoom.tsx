@@ -29,6 +29,10 @@ export const GameRoom: React.FC = () => {
   const me = gameState.players.find(p => p.socketId === myId);
   console.log("Me: ", me)
 
+  const toggleSelect = (id: string) => {
+    setSelectedId(prev => (prev === id ? null : id));
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 text-white pb-24">
       {/* Role Reveal */}
@@ -72,7 +76,7 @@ export const GameRoom: React.FC = () => {
         <PlayerGrid 
           players={gameState.players} 
           selectedId={selectedId} 
-          onSelect={setSelectedId}
+          onSelect={toggleSelect}
           myId={me?.id || ''}
         />
       </div>

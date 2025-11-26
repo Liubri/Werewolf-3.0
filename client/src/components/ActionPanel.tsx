@@ -28,7 +28,20 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer }
     );
   }
 
-  const handleAction = () => {
+  const nightButtonTexts: Record<RoleType, string> = {
+    WITCH: 'Poison',
+    WEREWOLF: 'Confirm Kill',
+    SEER: 'Check Player',
+    DREAMKEEPER: 'Protect Player',
+    VILLAGER: 'Vote'
+  };
+
+  const roleType: RoleType = myPlayer.role!.type!; // non-null assertion
+  const buttonText = isNight
+    ? nightButtonTexts[roleType]
+    : 'Vote';
+
+  const handleAction = (type?: string) => {
     if (!selectedId) return;
     setClicked(true);
     if (isNight) {
@@ -45,20 +58,11 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer }
         // Or we need separate buttons.
         // Let's just implement Poison here for simplicity if they select someone.
         // Save is usually a prompt "X is dying, save?".
-        sendNightAction('POISON', selectedId);
+        sendNightAction(type ? 'SAVE' : 'POISON', selectedId, {potionType: type ?? 'POISON'});
       }
     } else if (isDay) {
       sendVote(selectedId);
     }
-  };
-
-  const handleWitchSave = () => {
-    // Logic to save the nightKillTarget
-    // We need to know who it is.
-    // gameState.nightKillTarget should be visible to Witch?
-    // In our Game.ts, we only sent nightKillTarget to Werewolves.
-    // We should fix Game.ts to send it to Witch too.
-    sendNightAction('SAVE', undefined); // Target implicit or passed?
   };
 
   return (
@@ -75,15 +79,18 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer }
 
           {isNight && myPlayer.role?.type === RoleType.WITCH && (
              <button 
-               onClick={handleWitchSave}
+               onClick={() => {
+                handleAction('SAVE')
+               }}
+               disabled={clicked || !selectedId || !myPlayer.role.hasSavePotion}
                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed"
              >
-               Use Potion (Save)
+              Heal 
              </button>
           )}
 
           <button
-            onClick={handleAction}
+            onClick={() => handleAction()}
             disabled={clicked || !selectedId || (myPlayer.role?.type === RoleType.VILLAGER && isNight)}
             className={`
               font-bold py-2 px-6 rounded transition disabled:opacity-50 disabled:cursor-not-allowed
@@ -91,7 +98,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer }
               text-white
             `}
           >
-            {isNight ? 'Confirm Night Action' : 'Vote Player'}
+            {buttonText}
           </button>
         </div>
       </div>
