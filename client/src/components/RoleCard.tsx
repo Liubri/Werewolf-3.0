@@ -12,7 +12,7 @@ export const RoleCard: React.FC<RoleCardProps> = ({ roleName, roleType, descript
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setRevealed(true), 500);
+    const timer = setTimeout(() => setRevealed(true), 200);
     return () => clearTimeout(timer);
   }, []);
 
@@ -28,11 +28,11 @@ export const RoleCard: React.FC<RoleCardProps> = ({ roleName, roleType, descript
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 transition-opacity duration-1000">
+    <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-opacity-90 transition-opacity duration-1000">
       <div 
         className={`
-          relative w-80 h-96 rounded-xl border-4 shadow-2xl transform transition-all duration-1000 cursor-pointer
-          ${revealed ? 'rotate-y-0 opacity-100' : 'rotate-y-180 opacity-0'}
+          relative w-80 h-96 rounded-xl border-4 shadow-2xl transform transition-all ease-in duration-300 cursor-pointer
+          ${revealed ? 'opacity-100' : 'opacity-0'}
           ${getRoleColor()}
         `}
         onClick={onDismiss}

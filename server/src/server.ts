@@ -77,6 +77,14 @@ io.on('connection', (socket) => {
       game.handleDayVote(player.id, targetId);
     }
   });
+
+  socket.on('hunterRevenge', ({ targetId }) => {
+    const game = gameManager.getGameBySocketId(socket.id);
+    const player = gameManager.getPlayerBySocketId(socket.id);
+    if (game && player) {
+      game.handleHunterRevenge(player.id, targetId);
+    }
+  });
   
   // Admin/Debug: Force phase change
   socket.on('nextPhase', () => {

@@ -6,6 +6,7 @@ import { Villager } from '../roles/Villager';
 import { Seer } from '../roles/Seer';
 import { Witch } from '../roles/Witch';
 import { Dreamkeeper } from '../roles/Dreamkeeper';
+import { Hunter } from '../roles/Hunter';
 
 export class Game {
   id: string;
@@ -29,6 +30,11 @@ export class Game {
   // Voting State
   dayVotes: Map<string, string> = new Map(); // voterId -> targetId
 
+  // Hunter Revenge State
+  hunterRevengeActive: boolean = false;
+  hunterRevengePlayerId: string | null = null;
+  hunterRevengeTimeout: NodeJS.Timeout | null = null;
+
   constructor(id: string, hostId: string, onStateChange: any, onPrivateMessage: any) {
     this.id = id;
     this.hostId = hostId;
@@ -40,7 +46,8 @@ export class Game {
         [RoleType.VILLAGER]: 2,
         [RoleType.SEER]: 1,
         [RoleType.WITCH]: 1,
-        [RoleType.DREAMKEEPER]: 0
+        [RoleType.DREAMKEEPER]: 0,
+        [RoleType.HUNTER]: 1
       }
     };
   }
@@ -91,6 +98,7 @@ export class Game {
     addRole(Seer, this.settings.roleCounts[RoleType.SEER]);
     addRole(Witch, this.settings.roleCounts[RoleType.WITCH]);
     addRole(Dreamkeeper, this.settings.roleCounts[RoleType.DREAMKEEPER]);
+    addRole(Hunter, this.settings.roleCounts[RoleType.HUNTER]);
     
     // Fill rest with Villagers
     while (roleStack.length < playerIds.length) {
@@ -218,6 +226,17 @@ export class Game {
       if (p) p.die();
     });
 
+    // Check if Hunter died and trigger revenge
+    const hunterDied = Array.from(deadPlayers).find(pid => {
+      const player = this.players.get(pid);
+      return player?.role?.type === RoleType.HUNTER && player.role instanceof Hunter && player.role.canUseRevengeAbility;
+    });
+
+    if (hunterDied) {
+      this.triggerHunterRevenge(hunterDied);
+      return; // Don't transition to day yet, wait for Hunter revenge
+    }
+
     this.phase = GamePhase.DAY;
     this.broadcastState();
     
@@ -248,7 +267,16 @@ export class Game {
 
     if (target) {
       const p = this.players.get(target);
-      if (p) p.die();
+      if (p) {
+        p.die();
+        
+        // Check if Hunter died and trigger revenge
+        if (p.role?.type === RoleType.HUNTER && p.role instanceof Hunter && p.role.canUseRevengeAbility) {
+          this.dayVotes.clear();
+          this.triggerHunterRevenge(target);
+          return; // Don't transition to night yet, wait for Hunter revenge
+        }
+      }
     }
 
     this.dayVotes.clear();
@@ -304,5 +332,88 @@ export class Game {
       
       this.onStateChange(player.socketId, state);
     });
+  }
+
+  // Hunter Revenge Methods
+  triggerHunterRevenge(hunterId: string) {
+    const hunter = this.players.get(hunterId);
+    if (!hunter || !(hunter.role instanceof Hunter)) return;
+
+    this.hunterRevengeActive = true;
+    this.hunterRevengePlayerId = hunterId;
+
+    // Get alive players as eligible targets
+    const eligibleTargets = Array.from(this.players.values())
+      .filter(p => p.isAlive)
+      .map(p => ({ id: p.id, name: p.name }));
+
+    // Notify the Hunter player
+    this.onPrivateMessage(hunter.socketId, 'HUNTER_REVENGE_TRIGGER', {
+      eligibleTargets,
+      timeLimit: 30000 // 30 seconds in milliseconds
+    });
+
+    // Notify all other players
+    this.players.forEach(player => {
+      if (player.id !== hunterId) {
+        this.onPrivateMessage(player.socketId, 'HUNTER_REVENGE_ACTIVE', {
+          hunterName: hunter.name
+        });
+      }
+    });
+
+    // Set timeout for 30 seconds
+    this.hunterRevengeTimeout = setTimeout(() => {
+      this.completeHunterRevenge(hunterId, null);
+    }, 30000);
+
+    this.broadcastState();
+  }
+
+  handleHunterRevenge(hunterId: string, targetId: string) {
+    if (!this.hunterRevengeActive || this.hunterRevengePlayerId !== hunterId) {
+      return;
+    }
+
+    // Clear the timeout
+    if (this.hunterRevengeTimeout) {
+      clearTimeout(this.hunterRevengeTimeout);
+      this.hunterRevengeTimeout = null;
+    }
+
+    this.completeHunterRevenge(hunterId, targetId);
+  }
+
+  completeHunterRevenge(hunterId: string, targetId: string | null) {
+    const hunter = this.players.get(hunterId);
+    if (!hunter || !(hunter.role instanceof Hunter)) return;
+
+    // Mark ability as used
+    hunter.role.canUseRevengeAbility = false;
+
+    // Kill the target if one was selected
+    if (targetId) {
+      const target = this.players.get(targetId);
+      if (target && target.isAlive) {
+        target.die();
+      }
+    }
+
+    // Reset revenge state
+    this.hunterRevengeActive = false;
+    this.hunterRevengePlayerId = null;
+
+    // Continue to the next phase based on what phase we were transitioning from
+    // If we came from night (nightKillTarget might be set), go to day
+    // If we came from day (dayVotes was just cleared), go to night
+    if (this.phase === GamePhase.NIGHT) {
+      this.phase = GamePhase.DAY;
+    } else if (this.phase === GamePhase.DAY) {
+      this.phase = GamePhase.NIGHT;
+      this.startNightPhase();
+    }
+
+    this.broadcastState();
+    this.checkWinCondition();
   }
 }

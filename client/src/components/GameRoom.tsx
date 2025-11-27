@@ -5,13 +5,17 @@ import { ActionPanel } from './ActionPanel';
 import { GamePhase } from '../types/game';
 
 import { RoleCard } from './RoleCard';
+import { HunterRevengeModal } from './HunterRevengeModal';
 
 export const GameRoom: React.FC = () => {
-  const { gameState, socket } = useSocket();
+  const { gameState, socket, sendHunterRevenge } = useSocket();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [myId, setMyId] = useState<string>('');
   const [notification, setNotification] = useState<string | null>(null);
   const [showRole, setShowRole] = useState(true);
+  const [showHunterRevenge, setShowHunterRevenge] = useState(false);
+  const [hunterRevengeData, setHunterRevengeData] = useState<any>(null);
+  const [debugShowModal, setDebugShowModal] = useState(false); // DEBUG
 
   useEffect(() => {
     if (socket) {
@@ -21,6 +25,22 @@ export const GameRoom: React.FC = () => {
         setNotification(`Seer Result: ${data.targetName} is a ${data.isWerewolf ? 'WEREWOLF' : 'VILLAGER'}`);
         setTimeout(() => setNotification(null), 8000);
       });
+
+      socket.on('HUNTER_REVENGE_TRIGGER', (data: any) => {
+        setHunterRevengeData(data);
+        setShowHunterRevenge(true);
+      });
+
+      socket.on('HUNTER_REVENGE_ACTIVE', (data: any) => {
+        setNotification(`⚔️ ${data.hunterName} is taking their final shot...`);
+        setTimeout(() => setNotification(null), 10000);
+      });
+
+      return () => {
+        socket.off('SEER_RESULT');
+        socket.off('HUNTER_REVENGE_TRIGGER');
+        socket.off('HUNTER_REVENGE_ACTIVE');
+      };
     }
   }, [socket]);
 
@@ -31,6 +51,31 @@ export const GameRoom: React.FC = () => {
 
   const toggleSelect = (id: string) => {
     setSelectedId(prev => (prev === id ? null : id));
+  };
+
+  const handleHunterRevenge = (targetId: string | null) => {
+    if (targetId !== null) {
+      sendHunterRevenge(targetId);
+    }
+    // Defer state updates to avoid updating during render
+    setTimeout(() => {
+      setShowHunterRevenge(false);
+      setHunterRevengeData(null);
+      setDebugShowModal(false); // DEBUG
+    }, 0);
+  };
+
+  // DEBUG: Mock data for testing modal
+  const mockHunterRevengeData = {
+    eligibleTargets: [
+      { id: '1', name: 'Alice' },
+      { id: '2', name: 'Bob' },
+      { id: '3', name: 'Charlie' },
+      { id: '4', name: 'Diana' },
+      { id: '5', name: 'Eve' },
+      { id: '6', name: 'Frank' },
+    ],
+    timeLimit: 30000
   };
 
   return (
@@ -45,13 +90,29 @@ export const GameRoom: React.FC = () => {
         />
       )}
 
+      {/* Hunter Revenge Modal */}
+      {(showHunterRevenge && hunterRevengeData) || debugShowModal ? (
+        <HunterRevengeModal
+          eligibleTargets={debugShowModal ? mockHunterRevengeData.eligibleTargets : hunterRevengeData.eligibleTargets}
+          timeLimit={debugShowModal ? mockHunterRevengeData.timeLimit : hunterRevengeData.timeLimit}
+          onConfirm={handleHunterRevenge}
+        />
+      ) : null}
+
       {/* Header */}
       <div className="bg-gray-800 p-4 shadow-md flex justify-between items-center sticky top-0 z-10">
         <div>
           <h1 className="text-xl font-bold text-red-500">Werewolf</h1>
           <span className="text-sm text-gray-400">Room: {gameState.id}</span>
+          {/* DEBUG BUTTON */}
+          <button 
+            onClick={() => setDebugShowModal(!debugShowModal)}
+            className="ml-4 px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded"
+          >
+            {debugShowModal ? 'Hide' : 'Show'} Hunter Modal
+          </button>
         </div>
-        <div className="text-center">
+        <div className="text-center pr-12">
           <div className="text-2xl font-bold">{gameState.phase}</div>
           {notification && <div className="text-yellow-400 text-sm animate-pulse">{notification}</div>}
         </div>

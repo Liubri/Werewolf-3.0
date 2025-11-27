@@ -14,6 +14,7 @@ interface SocketContextType {
   startGame: () => void;
   sendNightAction: (action: string, targetId?: string, extra?: any) => void;
   sendVote: (targetId: string) => void;
+  sendHunterRevenge: (targetId: string) => void;
   nextPhase: () => void; // Debug
 }
 
@@ -74,6 +75,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const sendVote = (targetId: string) => {
     socket?.emit('vote', { targetId });
   };
+
+  const sendHunterRevenge = (targetId: string) => {
+    socket?.emit('hunterRevenge', { targetId });
+  };
   
   const nextPhase = () => {
     socket?.emit('nextPhase');
@@ -90,6 +95,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       startGame,
       sendNightAction,
       sendVote,
+      sendHunterRevenge,
       nextPhase
     }}>
       {children}
