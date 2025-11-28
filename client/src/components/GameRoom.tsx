@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSocket } from '../context/SocketContext';
 import { PlayerGrid } from './PlayerGrid';
 import { ActionPanel } from './ActionPanel';
-import { GamePhase } from '../types/game';
+import { GamePhase, RoleType } from '../types/game';
 
 import { RoleCard } from './RoleCard';
 import { HunterRevengeModal } from './HunterRevengeModal';
@@ -139,6 +139,7 @@ export const GameRoom: React.FC = () => {
           selectedId={selectedId} 
           onSelect={toggleSelect}
           myId={me?.id || ''}
+          disableSelfSelect={gameState.phase === GamePhase.NIGHT && me?.role?.type === RoleType.DREAMKEEPER}
         />
       </div>
 

@@ -7,13 +7,20 @@ export class Dreamkeeper extends Role {
   type = RoleType.DREAMKEEPER;
   team = Team.VILLAGER;
   name = 'Dreamkeeper';
-  description = 'Protect one player from being killed at night.';
-  wakeOrder = 5; // Wakes up very early, or before werewolves? Usually before.
+  description = 'Put a player to sleep each night. Sleeping players are immune to death, but if you die at night, they die too. If a player sleeps 2 consecutive nights, they die during the next day.';
+  wakeOrder = 5; // Wakes up very early, before werewolves
 
   handleNightAction(game: Game, player: Player, targetId?: string): void {
-    console.log('Dreamkeeper handleNightAction called:', player.name, 'protecting', targetId);
+    console.log('Dreamkeeper handleNightAction called:', player.name, 'putting to sleep', targetId);
+    
+    // Validate target is not self
+    if (targetId === player.id) {
+      console.log('Dreamkeeper cannot target themselves');
+      return;
+    }
+    
     if (targetId) {
-      game.protectPlayer(targetId);
+      game.putPlayerToSleep(targetId, player.id);
     }
   }
 }

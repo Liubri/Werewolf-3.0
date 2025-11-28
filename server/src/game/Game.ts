@@ -27,6 +27,11 @@ export class Game {
   witchSaveUsedThisTurn: boolean = false;
   witchPoisonTarget: string | null = null;
   
+  // Dreamkeeper State
+  sleepingTarget: string | null = null;
+  dreamkeeperId: string | null = null;
+  nightNumber: number = 0;
+  
   // Voting State
   dayVotes: Map<string, string> = new Map(); // voterId -> targetId
 
@@ -44,10 +49,10 @@ export class Game {
       roleCounts: {
         [RoleType.WEREWOLF]: 1,
         [RoleType.VILLAGER]: 2,
-        [RoleType.SEER]: 1,
+        [RoleType.SEER]: 0,
         [RoleType.WITCH]: 1,
-        [RoleType.DREAMKEEPER]: 0,
-        [RoleType.HUNTER]: 1
+        [RoleType.DREAMKEEPER]: 1,
+        [RoleType.HUNTER]: 0
       }
     };
   }
@@ -109,11 +114,18 @@ export class Game {
       const player = this.players.get(pid);
       if (player) {
         player.role = roleStack[index];
+        // Track Dreamkeeper player ID
+        if (player.role.type === RoleType.DREAMKEEPER) {
+          this.dreamkeeperId = pid;
+        }
       }
     });
   }
 
   startNightPhase() {
+    // Increment night number
+    this.nightNumber++;
+    
     // Reset night state
     this.nightKillTarget = null;
     this.werewolfVotes.clear();
@@ -121,7 +133,11 @@ export class Game {
     this.witchSaveUsedThisTurn = false;
     this.witchPoisonTarget = null;
     this.savedTarget = null;
+    this.sleepingTarget = null;
     this.players.forEach(p => p.resetNightStatus());
+    
+    // Handle Dreamkeeper auto-targeting at the end of night if no choice made
+    // This will be checked in endNight() before resolving deaths
     
     // Notify players it's night
     // In a real implementation, we would sequence the waking up.
@@ -177,6 +193,32 @@ export class Game {
     this.protectedTarget = targetId;
   }
 
+  putPlayerToSleep(targetId: string, dreamkeeperId: string) {
+    console.log('Putting player to sleep:', targetId);
+    this.sleepingTarget = targetId;
+    const player = this.players.get(targetId);
+    if (player) {
+      player.putToSleep(this.nightNumber);
+    }
+  }
+
+  handleDreamkeeperAutoTarget(dreamkeeperId: string) {
+    // If Dreamkeeper didn't choose, randomly select a target (not self)
+    const dreamkeeper = this.players.get(dreamkeeperId);
+    if (!dreamkeeper) return;
+
+    const eligibleTargets = Array.from(this.players.values())
+      .filter(p => p.isAlive && p.id !== dreamkeeperId)
+      .map(p => p.id);
+
+    if (eligibleTargets.length > 0) {
+      const randomIndex = Math.floor(Math.random() * eligibleTargets.length);
+      const targetId = eligibleTargets[randomIndex];
+      console.log('Dreamkeeper auto-targeting:', targetId);
+      this.putPlayerToSleep(targetId, dreamkeeperId);
+    }
+  }
+
   witchAction(playerId: string, action: 'SAVE' | 'POISON', targetId: string) {
     const player = this.players.get(playerId);
     if (!player || !(player.role instanceof Witch)) return;
@@ -201,13 +243,27 @@ export class Game {
   }
 
   endNight() {
+    // Handle Dreamkeeper auto-targeting if no choice was made
+    if (this.dreamkeeperId && !this.sleepingTarget) {
+      const dreamkeeper = this.players.get(this.dreamkeeperId);
+      if (dreamkeeper && dreamkeeper.isAlive) {
+        this.handleDreamkeeperAutoTarget(this.dreamkeeperId);
+      }
+    }
+
     // Resolve everything
     const deadPlayers: Set<string> = new Set();
 
     // Werewolf kill
     if (this.nightKillTarget) {
       if (this.nightKillTarget !== this.protectedTarget) {
-        deadPlayers.add(this.nightKillTarget);
+        // Check if target is asleep (immune to death)
+        const target = this.players.get(this.nightKillTarget);
+        if (!target?.asleep) {
+          deadPlayers.add(this.nightKillTarget);
+        } else {
+          console.log('Player is asleep and immune to werewolf kill:', this.nightKillTarget);
+        }
       }
     }
 
@@ -218,6 +274,13 @@ export class Game {
 
     if (this.witchSaveUsedThisTurn && this.savedTarget) {
       deadPlayers.delete(this.savedTarget);
+    }
+
+    // Check if Dreamkeeper died - if so, sleeping player also dies
+    const dreamkeeperDied = this.dreamkeeperId && deadPlayers.has(this.dreamkeeperId);
+    if (dreamkeeperDied && this.sleepingTarget) {
+      console.log('Dreamkeeper died, sleeping player also dies:', this.sleepingTarget);
+      deadPlayers.add(this.sleepingTarget);
     }
 
     // Apply deaths
@@ -250,6 +313,17 @@ export class Game {
   }
 
   endDay() {
+    // Handle deaths from 2 consecutive nights of sleep
+    const sleepDeaths: string[] = [];
+    this.players.forEach(player => {
+      if (player.isAlive && player.consecutiveSleepNights >= 2) {
+        console.log('Player died from sleeping 2 consecutive nights:', player.name);
+        sleepDeaths.push(player.id);
+        player.die();
+        player.resetSleepTracking();
+      }
+    });
+
     // Resolve voting
     const votes: Record<string, number> = {};
     this.dayVotes.forEach(target => {
