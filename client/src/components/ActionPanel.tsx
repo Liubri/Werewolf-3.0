@@ -34,7 +34,8 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer }
     SEER: 'Check Player',
     DREAMKEEPER: 'Sleep',
     VILLAGER: 'Vote',
-    HUNTER: ''
+    HUNTER: '',
+    WOLFBEAUTY: 'Confirm Kill'
   };
 
   const roleType: RoleType = myPlayer.role!.type!; // non-null assertion
@@ -52,14 +53,16 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer }
       } else if (myPlayer.role?.type === RoleType.SEER) {
         sendNightAction('CHECK', selectedId);
       } else if (myPlayer.role?.type === RoleType.DREAMKEEPER) {
-        sendNightAction('PROTECT', selectedId);
+        sendNightAction('SLEEP', selectedId);
       } else if (myPlayer.role?.type === RoleType.WITCH) {
         // Witch UI is complex (Save/Poison). 
         // For MVP, if they select someone, assume Poison?
         // Or we need separate buttons.
         // Let's just implement Poison here for simplicity if they select someone.
         // Save is usually a prompt "X is dying, save?".
-        sendNightAction(type ? 'SAVE' : 'POISON', selectedId, {potionType: type ?? 'POISON'});
+        sendNightAction(type ? 'SAVE' : 'POISON', selectedId, { potionType: type ?? 'POISON' });
+      } else if (myPlayer.role?.type === RoleType.WOLFBEAUTY) {
+        sendNightAction('CHARM', selectedId, { charmType: type ?? 'CHARM' });
       }
     } else if (isDay) {
       sendVote(selectedId);
@@ -79,29 +82,39 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer }
           <button onClick={nextPhase} className="px-2 py-1 bg-gray-700 text-xs rounded">Dev: Next Phase</button>
 
           {isNight && myPlayer.role?.type === RoleType.WITCH && (
-             <button 
-               onClick={() => {
+            <button
+              onClick={() => {
                 handleAction('SAVE')
-               }}
-               disabled={clicked || !selectedId || !myPlayer.role.hasSavePotion}
-               className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-             >
-              Heal 
-             </button>
+              }}
+              disabled={clicked || !selectedId || !myPlayer.role.hasSavePotion}
+              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Heal
+            </button>
+          )}
+
+          {isNight && myPlayer.role?.type === RoleType.WOLFBEAUTY && (
+            <button
+              onClick={() => handleAction('CHARM')}
+              disabled={clicked || !selectedId}
+              className="bg-pink-600 hover:bg-pink-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Charm
+            </button>
           )}
 
           {(myPlayer.role?.type !== RoleType.HUNTER || isDay) && (
-          <button
-            onClick={() => handleAction()}
-            disabled={clicked || !selectedId || (myPlayer.role?.type === RoleType.VILLAGER && isNight)}
-            className={`
+            <button
+              onClick={() => handleAction()}
+              disabled={clicked || !selectedId || (myPlayer.role?.type === RoleType.VILLAGER && isNight)}
+              className={`
               font-bold py-2 px-6 rounded transition disabled:opacity-50 disabled:cursor-not-allowed
               ${isNight ? 'bg-purple-600 hover:bg-purple-700' : 'bg-red-600 hover:bg-red-700'}
               text-white
             `}
-          >
-            {buttonText}
-          </button>
+            >
+              {buttonText}
+            </button>
           )}
         </div>
       </div>

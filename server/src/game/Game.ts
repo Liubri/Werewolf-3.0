@@ -7,6 +7,7 @@ import { Seer } from '../roles/Seer';
 import { Witch } from '../roles/Witch';
 import { Dreamkeeper } from '../roles/Dreamkeeper';
 import { Hunter } from '../roles/Hunter';
+import { WolfBeauty } from '../roles/WolfBeauty';
 
 export class Game {
   id: string;
@@ -14,7 +15,7 @@ export class Game {
   players: Map<string, Player> = new Map();
   phase: GamePhase = GamePhase.LOBBY;
   settings: GameSettings;
-  
+
   // Callbacks
   onStateChange: (gameId: string, state: any) => void;
   onPrivateMessage: (playerId: string, event: string, data: any) => void;
@@ -27,12 +28,12 @@ export class Game {
   savedTarget: string | null = null;
   witchSaveUsedThisTurn: boolean = false;
   witchPoisonTarget: string | null = null;
-  
+
   // Dreamkeeper State
   sleepingTarget: string | null = null;
   dreamkeeperId: string | null = null;
   nightNumber: number = 0;
-  
+
   // Voting State
   dayVotes: Map<string, string> = new Map(); // voterId -> targetId
 
@@ -41,6 +42,10 @@ export class Game {
   hunterRevengePlayerId: string | null = null;
   hunterRevengeTimeout: NodeJS.Timeout | null = null;
 
+  // Wolf Beauty State
+  wolfBeautyId: string | null = null;
+  charmedTarget: string | null = null;
+
   constructor(id: string, hostId: string, onStateChange: any, onPrivateMessage: any) {
     this.id = id;
     this.hostId = hostId;
@@ -48,12 +53,13 @@ export class Game {
     this.onPrivateMessage = onPrivateMessage;
     this.settings = {
       roleCounts: {
-        [RoleType.WEREWOLF]: 2,
+        [RoleType.WEREWOLF]: 1,
         [RoleType.VILLAGER]: 2,
         [RoleType.SEER]: 0,
-        [RoleType.WITCH]: 1,
+        [RoleType.WITCH]: 0,
         [RoleType.DREAMKEEPER]: 0,
-        [RoleType.HUNTER]: 0
+        [RoleType.HUNTER]: 1,
+        [RoleType.WOLFBEAUTY]: 1
       }
     };
   }
@@ -105,7 +111,8 @@ export class Game {
     addRole(Witch, this.settings.roleCounts[RoleType.WITCH]);
     addRole(Dreamkeeper, this.settings.roleCounts[RoleType.DREAMKEEPER]);
     addRole(Hunter, this.settings.roleCounts[RoleType.HUNTER]);
-    
+    addRole(WolfBeauty, this.settings.roleCounts[RoleType.WOLFBEAUTY]);
+
     // Fill rest with Villagers
     while (roleStack.length < playerIds.length) {
       roleStack.push(new Villager());
@@ -118,6 +125,8 @@ export class Game {
         // Track Dreamkeeper player ID
         if (player.role.type === RoleType.DREAMKEEPER) {
           this.dreamkeeperId = pid;
+        } else if (player.role.type === RoleType.WOLFBEAUTY) {
+          this.wolfBeautyId = pid;
         }
       }
     });
@@ -126,7 +135,7 @@ export class Game {
   startNightPhase() {
     // Increment night number
     this.nightNumber++;
-    
+
     // Reset night state
     this.nightKillTarget = null;
     this.werewolfVotes.clear();
@@ -136,11 +145,12 @@ export class Game {
     this.witchPoisonTarget = null;
     this.savedTarget = null;
     this.sleepingTarget = null;
+    this.charmedTarget = null;
     this.players.forEach(p => p.resetNightStatus());
-    
+
     // Handle Dreamkeeper auto-targeting at the end of night if no choice made
     // This will be checked in endNight() before resolving deaths
-    
+
     // Notify players it's night
     // In a real implementation, we would sequence the waking up.
     // For this MVP, we will let everyone with an action act, and resolve at the end of a timer?
@@ -151,15 +161,15 @@ export class Game {
     // 1. Dreamkeeper & Werewolves act.
     // 2. Once Werewolves decide (or timer ends), Witch acts.
     // 3. Seer acts (independent).
-    
+
     // To keep it simple but functional:
     // We will have a "NightStep" state.
     // Step 1: Werewolves & Dreamkeeper & Seer (Seer can act anytime)
     // Step 2: Witch (needs to see kill)
-    
+
     // Actually, let's just expose the state. If Werewolves vote, the Witch sees it update in real-time?
     // That's a bit broken.
-    
+
     // Let's stick to: All act. Witch sees "Potential Victim" if Werewolves have majority.
   }
 
@@ -177,7 +187,7 @@ export class Game {
     this.werewolfVotes.forEach(target => {
       votes[target] = (votes[target] || 0) + 1;
     });
-    
+
     // Find max
     let maxVotes = 0;
     let target = null;
@@ -187,7 +197,7 @@ export class Game {
         target = t;
       }
     }
-    
+
     this.nightKillTarget = target;
   }
 
@@ -214,6 +224,11 @@ export class Game {
     if (player) {
       player.putToSleep(this.nightNumber);
     }
+  }
+
+  charmPlayer(targetId: string) {
+    console.log('Charming player:', targetId);
+    this.charmedTarget = targetId;
   }
 
   handleDreamkeeperAutoTarget(dreamkeeperId: string) {
@@ -298,6 +313,13 @@ export class Game {
       deadPlayers.add(this.sleepingTarget);
     }
 
+    // Check if Wolf Beauty died - if so, charmed player also dies
+    const wolfBeautyDied = this.wolfBeautyId && deadPlayers.has(this.wolfBeautyId);
+    if (wolfBeautyDied && this.charmedTarget) {
+      console.log('Wolf Beauty died, charmed player also dies:', this.charmedTarget);
+      deadPlayers.add(this.charmedTarget);
+    }
+
     // Apply deaths
     deadPlayers.forEach(pid => {
       const p = this.players.get(pid);
@@ -309,15 +331,16 @@ export class Game {
       const player = this.players.get(pid);
       return player?.role?.type === RoleType.HUNTER && player.role instanceof Hunter && player.role.canUseRevengeAbility;
     });
-
-    if (hunterDied) {
+    console.log("HungerID: ", hunterDied);
+    console.log("WolfBeautyID: ", this.charmedTarget);
+    if (hunterDied && hunterDied !== this.charmedTarget) {
       this.triggerHunterRevenge(hunterDied);
       return; // Don't transition to day yet, wait for Hunter revenge
     }
 
     this.phase = GamePhase.DAY;
     this.broadcastState();
-    
+
     // Check win
     this.checkWinCondition();
   }
@@ -358,7 +381,7 @@ export class Game {
       const p = this.players.get(target);
       if (p) {
         p.die();
-        
+
         // Check if Hunter died and trigger revenge
         if (p.role?.type === RoleType.HUNTER && p.role instanceof Hunter && p.role.canUseRevengeAbility) {
           this.dayVotes.clear();
@@ -395,7 +418,7 @@ export class Game {
     // We will send a "public state" and individual "private states"
     // But for simplicity, let's just send the raw state to the manager 
     // and let the manager filter it, or we filter it here.
-    
+
     // Actually, we should filter here.
     this.players.forEach(player => {
       const publicPlayers = Array.from(this.players.values()).map(p => ({
@@ -426,7 +449,7 @@ export class Game {
         werewolfTargets: player.role?.team === Team.WEREWOLF ? werewolfTargetsObj : null,
         ...extraData
       };
-      
+
       this.onStateChange(player.socketId, state);
     });
   }
