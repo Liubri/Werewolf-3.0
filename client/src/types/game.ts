@@ -40,5 +40,6 @@ export interface GameState {
   phase: GamePhase;
   players: Player[];
   nightKillTarget?: string | null;
+  werewolfTargets?: Record<string, string> | null; // werewolfId -> targetId
   winner?: Team;
 }

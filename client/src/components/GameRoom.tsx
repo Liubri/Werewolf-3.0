@@ -8,7 +8,7 @@ import { RoleCard } from './RoleCard';
 import { HunterRevengeModal } from './HunterRevengeModal';
 
 export const GameRoom: React.FC = () => {
-  const { gameState, socket, sendHunterRevenge } = useSocket();
+  const { gameState, socket, sendHunterRevenge, sendWerewolfSelection } = useSocket();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [myId, setMyId] = useState<string>('');
   const [notification, setNotification] = useState<string | null>(null);
@@ -47,10 +47,19 @@ export const GameRoom: React.FC = () => {
   if (!gameState) return null;
 
   const me = gameState.players.find(p => p.socketId === myId);
-  console.log("Me: ", me)
+  // console.log("Me: ", me)
 
   const toggleSelect = (id: string) => {
-    setSelectedId(prev => (prev === id ? null : id));
+    setSelectedId(prev => {
+      const newSelection = prev === id ? null : id;
+      
+      // Send real-time werewolf selection if this is a werewolf during night phase
+      if (me?.role?.type === RoleType.WEREWOLF && gameState.phase === GamePhase.NIGHT) {
+        sendWerewolfSelection(newSelection || ''); // Send empty string for deselection
+      }
+      
+      return newSelection;
+    });
   };
 
   const handleHunterRevenge = (targetId: string | null) => {
@@ -140,6 +149,7 @@ export const GameRoom: React.FC = () => {
           onSelect={toggleSelect}
           myId={me?.id || ''}
           disableSelfSelect={gameState.phase === GamePhase.NIGHT && me?.role?.type === RoleType.DREAMKEEPER}
+          werewolfTargets={gameState.werewolfTargets}
         />
       </div>
 

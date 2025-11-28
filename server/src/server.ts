@@ -70,6 +70,16 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Real-time werewolf target selection (before confirm)
+  socket.on('werewolfSelectTarget', ({ targetId }) => {
+    const game = gameManager.getGameBySocketId(socket.id);
+    const player = gameManager.getPlayerBySocketId(socket.id);
+    if (game && player && player.role?.type === 'WEREWOLF') {
+      // Treat empty string as null for deselection
+      game.updateWerewolfTarget(player.id, targetId || null);
+    }
+  });
+
   socket.on('vote', ({ targetId }) => {
     const game = gameManager.getGameBySocketId(socket.id);
     const player = gameManager.getPlayerBySocketId(socket.id);
@@ -88,11 +98,11 @@ io.on('connection', (socket) => {
   
   // Admin/Debug: Force phase change
   socket.on('nextPhase', () => {
-     const game = gameManager.getGameBySocketId(socket.id);
-     if (game) {
-       if (game.phase === 'NIGHT') game.endNight();
-       else if (game.phase === 'DAY') game.endDay();
-     }
+    const game = gameManager.getGameBySocketId(socket.id);
+    if (game) {
+      if (game.phase === 'NIGHT') game.endNight();
+      else if (game.phase === 'DAY') game.endDay();
+    }
   });
 
   socket.on('disconnect', () => {

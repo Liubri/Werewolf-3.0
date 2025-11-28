@@ -32,7 +32,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer }
     WITCH: 'Poison',
     WEREWOLF: 'Confirm Kill',
     SEER: 'Check Player',
-    DREAMKEEPER: 'Protect Player',
+    DREAMKEEPER: 'Sleep',
     VILLAGER: 'Vote',
     HUNTER: ''
   };

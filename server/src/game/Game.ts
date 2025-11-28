@@ -22,6 +22,7 @@ export class Game {
   // Night State
   nightKillTarget: string | null = null;
   werewolfVotes: Map<string, string> = new Map(); // voterId -> targetId
+  werewolfTargets: Map<string, string> = new Map(); // werewolfId -> currentTargetId (for real-time sharing)
   protectedTarget: string | null = null;
   savedTarget: string | null = null;
   witchSaveUsedThisTurn: boolean = false;
@@ -47,11 +48,11 @@ export class Game {
     this.onPrivateMessage = onPrivateMessage;
     this.settings = {
       roleCounts: {
-        [RoleType.WEREWOLF]: 1,
+        [RoleType.WEREWOLF]: 2,
         [RoleType.VILLAGER]: 2,
         [RoleType.SEER]: 0,
         [RoleType.WITCH]: 1,
-        [RoleType.DREAMKEEPER]: 1,
+        [RoleType.DREAMKEEPER]: 0,
         [RoleType.HUNTER]: 0
       }
     };
@@ -129,6 +130,7 @@ export class Game {
     // Reset night state
     this.nightKillTarget = null;
     this.werewolfVotes.clear();
+    this.werewolfTargets.clear();
     this.protectedTarget = null;
     this.witchSaveUsedThisTurn = false;
     this.witchPoisonTarget = null;
@@ -164,6 +166,7 @@ export class Game {
   registerWerewolfVote(voterId: string, targetId: string) {
     console.log('Registering werewolf vote:', voterId, '->', targetId);
     this.werewolfVotes.set(voterId, targetId);
+    this.werewolfTargets.set(voterId, targetId); // Track individual targets for sharing
     this.resolveWerewolfKill();
     this.broadcastState();
   }
@@ -186,6 +189,17 @@ export class Game {
     }
     
     this.nightKillTarget = target;
+  }
+
+  updateWerewolfTarget(werewolfId: string, targetId: string | null) {
+    // console.log('Updating werewolf target:', werewolfId, '->', targetId);
+    if (targetId) {
+      this.werewolfTargets.set(werewolfId, targetId);
+    } else {
+      // Remove target if deselected
+      this.werewolfTargets.delete(werewolfId);
+    }
+    this.broadcastState();
   }
 
   protectPlayer(targetId: string) {
@@ -225,12 +239,12 @@ export class Game {
     console.log("Has save potion", player.role.hasSavePotion);
     console.log("Has poison potion", player.role.hasPoisonPotion);
     if (action === 'SAVE' && player.role.hasSavePotion) {
-       this.witchSaveUsedThisTurn = true;
-       this.savedTarget = targetId;
-       player.role.useSave();
+      this.witchSaveUsedThisTurn = true;
+      this.savedTarget = targetId;
+      player.role.useSave();
     } else if (action === 'POISON' && player.role.hasPoisonPotion && targetId) {
-       this.witchPoisonTarget = targetId;
-       player.role.usePoison();
+      this.witchPoisonTarget = targetId;
+      player.role.usePoison();
     }
     this.broadcastState();
   }
@@ -243,6 +257,7 @@ export class Game {
   }
 
   endNight() {
+    this.werewolfTargets.clear();
     // Handle Dreamkeeper auto-targeting if no choice was made
     if (this.dreamkeeperId && !this.sleepingTarget) {
       const dreamkeeper = this.players.get(this.dreamkeeperId);
@@ -393,6 +408,12 @@ export class Game {
         role: (this.phase === GamePhase.GAME_OVER || p.id === player.id) ? p.role : null
       }));
 
+      // Convert werewolfTargets Map to object for JSON serialization
+      const werewolfTargetsObj: Record<string, string> = {};
+      this.werewolfTargets.forEach((targetId, werewolfId) => {
+        werewolfTargetsObj[werewolfId] = targetId;
+      });
+
       const state = {
         id: this.id,
         hostId: this.hostId,
@@ -401,6 +422,8 @@ export class Game {
         // Add other phase info
         // Wolves see their target, Witch sees it too (to save)
         nightKillTarget: (player.role?.team === Team.WEREWOLF || player.role?.type === RoleType.WITCH) ? this.nightKillTarget : null,
+        // Werewolves see all werewolf targets
+        werewolfTargets: player.role?.team === Team.WEREWOLF ? werewolfTargetsObj : null,
         ...extraData
       };
       
