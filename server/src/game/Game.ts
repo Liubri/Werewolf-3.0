@@ -8,6 +8,7 @@ import { Witch } from '../roles/Witch';
 import { Dreamkeeper } from '../roles/Dreamkeeper';
 import { Hunter } from '../roles/Hunter';
 import { WolfBeauty } from '../roles/WolfBeauty';
+import { Magician } from '../roles/Magician';
 
 export class Game {
   id: string;
@@ -46,6 +47,10 @@ export class Game {
   wolfBeautyId: string | null = null;
   charmedTarget: string | null = null;
 
+  // Magician State
+  swappedIds: [string, string] | null = null;
+  swappedPlayersHistory: Set<string> = new Set(); // Track players who have been swapped
+
   constructor(id: string, hostId: string, onStateChange: any, onPrivateMessage: any) {
     this.id = id;
     this.hostId = hostId;
@@ -58,8 +63,9 @@ export class Game {
         [RoleType.SEER]: 0,
         [RoleType.WITCH]: 0,
         [RoleType.DREAMKEEPER]: 0,
-        [RoleType.HUNTER]: 1,
-        [RoleType.WOLFBEAUTY]: 1
+        [RoleType.HUNTER]: 0,
+        [RoleType.WOLFBEAUTY]: 1,
+        [RoleType.MAGICIAN]: 1
       }
     };
   }
@@ -101,7 +107,7 @@ export class Game {
     // Let's use a simple stack based on settings
     const roleStack: Role[] = [];
     const addRole = (RoleClass: any, count: number) => {
-      for(let i=0; i<count; i++) roleStack.push(new RoleClass());
+      for (let i = 0; i < count; i++) roleStack.push(new RoleClass());
     };
 
     // Adjust counts based on player size if needed, but for now trust settings
@@ -112,6 +118,7 @@ export class Game {
     addRole(Dreamkeeper, this.settings.roleCounts[RoleType.DREAMKEEPER]);
     addRole(Hunter, this.settings.roleCounts[RoleType.HUNTER]);
     addRole(WolfBeauty, this.settings.roleCounts[RoleType.WOLFBEAUTY]);
+    addRole(Magician, this.settings.roleCounts[RoleType.MAGICIAN]);
 
     // Fill rest with Villagers
     while (roleStack.length < playerIds.length) {
@@ -146,6 +153,7 @@ export class Game {
     this.savedTarget = null;
     this.sleepingTarget = null;
     this.charmedTarget = null;
+    this.swappedIds = null; // Reset swap for new night (but keep history)
     this.players.forEach(p => p.resetNightStatus());
 
     // Handle Dreamkeeper auto-targeting at the end of night if no choice made
@@ -197,8 +205,8 @@ export class Game {
         target = t;
       }
     }
-
-    this.nightKillTarget = target;
+    // Resolve the target through Magician's ID swap if applicable
+    this.nightKillTarget = target ? this.swappedTargetId(target) : null;
   }
 
   updateWerewolfTarget(werewolfId: string, targetId: string | null) {
@@ -214,21 +222,71 @@ export class Game {
 
   protectPlayer(targetId: string) {
     console.log('Protecting player:', targetId);
-    this.protectedTarget = targetId;
+    const resolvedTarget = this.swappedTargetId(targetId);
+    this.protectedTarget = resolvedTarget;
   }
 
   putPlayerToSleep(targetId: string, dreamkeeperId: string) {
-    console.log('Putting player to sleep:', targetId);
-    this.sleepingTarget = targetId;
-    const player = this.players.get(targetId);
+    const resolvedTarget = this.swappedTargetId(targetId);
+    console.log('Putting player to sleep:', resolvedTarget);
+    this.sleepingTarget = resolvedTarget;
+    const player = this.players.get(resolvedTarget);
     if (player) {
       player.putToSleep(this.nightNumber);
     }
   }
 
   charmPlayer(targetId: string) {
-    console.log('Charming player:', targetId);
-    this.charmedTarget = targetId;
+    const resolvedTarget = this.swappedTargetId(targetId);
+    console.log('Charming player:', resolvedTarget);
+    this.charmedTarget = resolvedTarget;
+  }
+
+  swapPlayerIds(playerId1: string, playerId2: string) {
+    console.log('Magician attempting to swap:', playerId1, '<->', playerId2);
+
+    // Validate both players exist and are alive
+    const player1 = this.players.get(playerId1);
+    const player2 = this.players.get(playerId2);
+
+    if (!player1 || !player2 || !player1.isAlive || !player2.isAlive) {
+      console.log('Invalid swap: one or both players not found or dead');
+      return;
+    }
+
+    // Check if either player has already been swapped
+    if (this.swappedPlayersHistory.has(playerId1) || this.swappedPlayersHistory.has(playerId2)) {
+      console.log('Invalid swap: one or both players have already been swapped this game');
+      return;
+    }
+
+    // Store the swap
+    this.swappedIds = [playerId1, playerId2];
+    this.swappedPlayersHistory.add(playerId1);
+    this.swappedPlayersHistory.add(playerId2);
+
+    console.log('Successfully swapped:', playerId1, '<->', playerId2);
+  }
+
+  getEligibleSwapTargets(): string[] {
+    return Array.from(this.players.values())
+      .filter(p => p.isAlive && !this.swappedPlayersHistory.has(p.id))
+      .map(p => p.id);
+  }
+
+  swappedTargetId(targetId: string): string {
+    if (!this.swappedIds) return targetId;
+
+    const [id1, id2] = this.swappedIds;
+    if (targetId === id1) {
+      console.log('Resolving target:', targetId, '->', id2);
+      return id2;
+    } else if (targetId === id2) {
+      console.log('Resolving target:', targetId, '->', id1);
+      return id1;
+    }
+
+    return targetId;
   }
 
   handleDreamkeeperAutoTarget(dreamkeeperId: string) {
@@ -244,7 +302,8 @@ export class Game {
       const randomIndex = Math.floor(Math.random() * eligibleTargets.length);
       const targetId = eligibleTargets[randomIndex];
       console.log('Dreamkeeper auto-targeting:', targetId);
-      this.putPlayerToSleep(targetId, dreamkeeperId);
+      const resolvedTarget = this.swappedTargetId(targetId);
+      this.putPlayerToSleep(resolvedTarget, dreamkeeperId);
     }
   }
 
@@ -253,12 +312,13 @@ export class Game {
     if (!player || !(player.role instanceof Witch)) return;
     console.log("Has save potion", player.role.hasSavePotion);
     console.log("Has poison potion", player.role.hasPoisonPotion);
+    const resolvedTarget = this.swappedTargetId(targetId);
     if (action === 'SAVE' && player.role.hasSavePotion) {
       this.witchSaveUsedThisTurn = true;
       this.savedTarget = targetId;
       player.role.useSave();
     } else if (action === 'POISON' && player.role.hasPoisonPotion && targetId) {
-      this.witchPoisonTarget = targetId;
+      this.witchPoisonTarget = resolvedTarget;
       player.role.usePoison();
     }
     this.broadcastState();
@@ -331,7 +391,7 @@ export class Game {
       const player = this.players.get(pid);
       return player?.role?.type === RoleType.HUNTER && player.role instanceof Hunter && player.role.canUseRevengeAbility;
     });
-    console.log("HungerID: ", hunterDied);
+    console.log("HunterID: ", hunterDied);
     console.log("WolfBeautyID: ", this.charmedTarget);
     if (hunterDied && hunterDied !== this.charmedTarget) {
       this.triggerHunterRevenge(hunterDied);

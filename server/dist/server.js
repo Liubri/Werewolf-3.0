@@ -65,8 +65,24 @@ io.on('connection', (socket) => {
                 player.role.handleNightAction(game, player, data.targetId);
             }
             else if (player.role.type === 'WITCH') {
-                game.witchAction(player.id, data.action, data.targetId);
+                player.role.handleNightAction(game, player, data.targetId, data);
+                console.log('Witch action handled:', data.potionType);
             }
+            else if (player.role.type === 'WOLFBEAUTY') {
+                player.role.handleNightAction(game, player, data.targetId, data);
+            }
+            else if (player.role.type === 'MAGICIAN') {
+                player.role.handleNightAction(game, player, data.targetId, data.secondaryTargetId);
+            }
+        }
+    });
+    // Real-time werewolf target selection (before confirm)
+    socket.on('werewolfSelectTarget', ({ targetId }) => {
+        const game = gameManager.getGameBySocketId(socket.id);
+        const player = gameManager.getPlayerBySocketId(socket.id);
+        if (game && player && player.role?.type === 'WEREWOLF') {
+            // Treat empty string as null for deselection
+            game.updateWerewolfTarget(player.id, targetId || null);
         }
     });
     socket.on('vote', ({ targetId }) => {
@@ -74,6 +90,13 @@ io.on('connection', (socket) => {
         const player = gameManager.getPlayerBySocketId(socket.id);
         if (game && player) {
             game.handleDayVote(player.id, targetId);
+        }
+    });
+    socket.on('hunterRevenge', ({ targetId }) => {
+        const game = gameManager.getGameBySocketId(socket.id);
+        const player = gameManager.getPlayerBySocketId(socket.id);
+        if (game && player) {
+            game.handleHunterRevenge(player.id, targetId);
         }
     });
     // Admin/Debug: Force phase change

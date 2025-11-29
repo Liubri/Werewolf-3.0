@@ -13,5 +13,5 @@ export abstract class Role {
 
   constructor() {}
 
-  abstract handleNightAction(game: Game, player: Player, targetId?: string, secondaryTargetId?: string, data?: any): void;
+  abstract handleNightAction(game: Game, player: Player, targetId?: string, data?: any): void;
 }

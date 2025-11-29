@@ -16,11 +16,12 @@ export const GameRoom: React.FC = () => {
   const [showHunterRevenge, setShowHunterRevenge] = useState(false);
   const [hunterRevengeData, setHunterRevengeData] = useState<any>(null);
   const [debugShowModal, setDebugShowModal] = useState(false); // DEBUG
+  const [secondTarget, setSecondTarget] = useState<string | null>(null); // For Magician's first target
 
   useEffect(() => {
     if (socket) {
       setMyId(socket.id || '');
-      
+
       socket.on('SEER_RESULT', (data: any) => {
         setNotification(`Seer Result: ${data.targetName} is a ${data.isWerewolf ? 'WEREWOLF' : 'VILLAGER'}`);
         setTimeout(() => setNotification(null), 8000);
@@ -52,12 +53,12 @@ export const GameRoom: React.FC = () => {
   const toggleSelect = (id: string) => {
     setSelectedId(prev => {
       const newSelection = prev === id ? null : id;
-      
+
       // Send real-time werewolf selection if this is a werewolf during night phase
       if (me?.role?.type === RoleType.WEREWOLF && gameState.phase === GamePhase.NIGHT) {
         sendWerewolfSelection(newSelection || ''); // Send empty string for deselection
       }
-      
+
       return newSelection;
     });
   };
@@ -91,7 +92,7 @@ export const GameRoom: React.FC = () => {
     <div className="min-h-screen bg-gray-900 text-white pb-24">
       {/* Role Reveal */}
       {showRole && me?.role && (
-        <RoleCard 
+        <RoleCard
           roleName={me.role.name}
           roleType={me.role.type}
           description={me.role.description}
@@ -114,7 +115,7 @@ export const GameRoom: React.FC = () => {
           <h1 className="text-xl font-bold text-red-500">Werewolf</h1>
           <span className="text-sm text-gray-400">Room: {gameState.id}</span>
           {/* DEBUG BUTTON */}
-          <button 
+          <button
             onClick={() => setDebugShowModal(!debugShowModal)}
             className="ml-4 px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded"
           >
@@ -142,19 +143,20 @@ export const GameRoom: React.FC = () => {
             </h2>
           </div>
         )}
-        
-        <PlayerGrid 
-          players={gameState.players} 
-          selectedId={selectedId} 
+
+        <PlayerGrid
+          players={gameState.players}
+          selectedId={selectedId}
           onSelect={toggleSelect}
           myId={me?.id || ''}
           disableSelfSelect={gameState.phase === GamePhase.NIGHT && me?.role?.type === RoleType.DREAMKEEPER}
           werewolfTargets={gameState.werewolfTargets}
+          disabledIds={secondTarget ? [secondTarget] : []}
         />
       </div>
 
       {/* Footer Actions */}
-      <ActionPanel selectedId={selectedId} myPlayer={me} />
+      <ActionPanel selectedId={selectedId} myPlayer={me} secondTarget={secondTarget} setSecondTarget={setSecondTarget} />
     </div>
   );
 };

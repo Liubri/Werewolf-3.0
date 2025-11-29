@@ -18,7 +18,8 @@ export enum RoleType {
   WITCH = 'WITCH',
   DREAMKEEPER = 'DREAMKEEPER',
   HUNTER = 'HUNTER',
-  WOLFBEAUTY = 'WOLFBEAUTY'
+  WOLFBEAUTY = 'WOLFBEAUTY',
+  MAGICIAN = 'MAGICIAN'
 }
 
 export interface GameSettings {

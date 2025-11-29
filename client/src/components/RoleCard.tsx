@@ -24,13 +24,14 @@ export const RoleCard: React.FC<RoleCardProps> = ({ roleName, roleType, descript
       case RoleType.WITCH: return 'bg-green-900 border-green-500';
       case RoleType.DREAMKEEPER: return 'bg-indigo-900 border-indigo-500';
       case RoleType.WOLFBEAUTY: return 'bg-pink-900 border-pink-500';
+      case RoleType.MAGICIAN: return 'bg-cyan-900 border-cyan-500';
       default: return 'bg-gray-800 border-gray-500';
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-opacity-90 transition-opacity duration-1000">
-      <div 
+      <div
         className={`
           relative w-80 h-96 rounded-xl border-4 shadow-2xl transform transition-all ease-in duration-300 cursor-pointer
           ${revealed ? 'opacity-100' : 'opacity-0'}

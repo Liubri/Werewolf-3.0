@@ -8,9 +8,10 @@ interface PlayerGridProps {
   myId: string;
   disableSelfSelect?: boolean; // For roles like Dreamkeeper that can't target themselves
   werewolfTargets?: Record<string, string> | null; // werewolfId -> targetId
+  disabledIds?: string[]; // Additional player IDs to disable (e.g., Magician's first target)
 }
 
-export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onSelect, myId, disableSelfSelect = false, werewolfTargets }) => {
+export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onSelect, myId, disableSelfSelect = false, werewolfTargets, disabledIds = [] }) => {
   // Define colors for different werewolves
   const werewolfColors = [
     { ring: 'ring-red-500', bg: 'bg-red-500', text: 'text-red-500' },
@@ -38,7 +39,8 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onS
         const isMe = player.id === myId;
         const isSelected = player.id === selectedId;
         const isDead = !player.isAlive;
-        const isDisabled = isDead || (disableSelfSelect && isMe);
+        const isInDisabledList = disabledIds.includes(player.id);
+        const isDisabled = isDead || (disableSelfSelect && isMe) || isInDisabledList;
 
         // Find which werewolves are targeting this player
         const targetingWerewolves: Array<{ id: string; name: string; color: typeof werewolfColors[0] }> = [];
@@ -85,7 +87,7 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onS
             <span className="font-bold text-lg truncate w-full text-center">{player.name}</span>
             {isMe && <span className="text-xs text-blue-300">(You)</span>}
             {isDead && <span className="text-xs text-red-500 font-bold">DEAD</span>}
-            
+
             {/* Werewolf name labels */}
             {targetingWerewolves.length > 0 && !isDead && (
               <div className="mt-1 flex flex-wrap gap-1 justify-center">
@@ -99,11 +101,19 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onS
                 ))}
               </div>
             )}
-            
+
             {disableSelfSelect && isMe && !isDead && (
               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <span className="bg-black bg-opacity-80 text-yellow-300 text-xs px-2 py-1 rounded-lg">
                   Can't target self
+                </span>
+              </div>
+            )}
+
+            {isInDisabledList && !isDead && (
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="bg-black bg-opacity-80 text-cyan-300 text-xs px-2 py-1 rounded-lg">
+                  Already selected
                 </span>
               </div>
             )}

@@ -21,4 +21,7 @@ var RoleType;
     RoleType["SEER"] = "SEER";
     RoleType["WITCH"] = "WITCH";
     RoleType["DREAMKEEPER"] = "DREAMKEEPER";
+    RoleType["HUNTER"] = "HUNTER";
+    RoleType["WOLFBEAUTY"] = "WOLFBEAUTY";
+    RoleType["MAGICIAN"] = "MAGICIAN";
 })(RoleType || (exports.RoleType = RoleType = {}));

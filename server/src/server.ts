@@ -68,6 +68,8 @@ io.on('connection', (socket) => {
         console.log('Witch action handled:', data.potionType);
       } else if (player.role.type === 'WOLFBEAUTY') {
         player.role.handleNightAction(game, player, data.targetId, data);
+      } else if (player.role.type === 'MAGICIAN') {
+        player.role.handleNightAction(game, player, data.targetId, data);
       }
     }
   });
@@ -97,7 +99,7 @@ io.on('connection', (socket) => {
       game.handleHunterRevenge(player.id, targetId);
     }
   });
-  
+
   // Admin/Debug: Force phase change
   socket.on('nextPhase', () => {
     const game = gameManager.getGameBySocketId(socket.id);

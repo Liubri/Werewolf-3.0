@@ -11,10 +11,32 @@ class Player {
         this.isReady = false;
         this.protected = false;
         this.poisoned = false;
+        this.asleep = false;
+        this.consecutiveSleepNights = 0;
+        this.lastSleptNight = -1;
     }
     resetNightStatus() {
         this.protected = false;
+        this.asleep = false;
         // Poison persists if set, but usually handled by death logic
+    }
+    putToSleep(nightNumber) {
+        this.asleep = true;
+        // Check if this is consecutive
+        if (this.lastSleptNight === nightNumber - 1) {
+            this.consecutiveSleepNights++;
+        }
+        else {
+            this.consecutiveSleepNights = 1;
+        }
+        this.lastSleptNight = nightNumber;
+    }
+    wakeUp() {
+        this.asleep = false;
+    }
+    resetSleepTracking() {
+        this.consecutiveSleepNights = 0;
+        this.lastSleptNight = -1;
     }
     die() {
         this.isAlive = false;
