@@ -17,6 +17,8 @@ export const GameRoom: React.FC = () => {
   const [hunterRevengeData, setHunterRevengeData] = useState<any>(null);
   const [debugShowModal, setDebugShowModal] = useState(false); // DEBUG
   const [secondTarget, setSecondTarget] = useState<string | null>(null); // For Magician's first target
+  const [seerResults, setSeerResults] = useState<Record<string, boolean>>({}); // targetId -> isWerewolf
+  const [nightStatus, setNightStatus] = useState<Record<string, { protected?: boolean; poisoned?: boolean; asleep?: boolean }>>({}); // Optimistic UI updates
 
   useEffect(() => {
     if (socket) {
@@ -24,6 +26,10 @@ export const GameRoom: React.FC = () => {
 
       socket.on('SEER_RESULT', (data: any) => {
         setNotification(`Seer Result: ${data.targetName} is a ${data.isWerewolf ? 'WEREWOLF' : 'VILLAGER'}`);
+        setSeerResults(prev => ({
+          ...prev,
+          [data.targetId]: data.isWerewolf
+        }));
         setTimeout(() => setNotification(null), 8000);
       });
 
@@ -44,6 +50,11 @@ export const GameRoom: React.FC = () => {
       };
     }
   }, [socket]);
+
+  // Reset night status when phase changes
+  useEffect(() => {
+    setNightStatus({});
+  }, [gameState?.phase]);
 
   if (!gameState) return null;
 
@@ -87,6 +98,16 @@ export const GameRoom: React.FC = () => {
     ],
     timeLimit: 30000
   };
+
+  const rolesThatCannotSelfSelect = new Set([
+    RoleType.SEER,
+    RoleType.DREAMKEEPER
+    // add more roles here easily
+  ]);
+
+  function cannotSelfSelect(roleType?: RoleType): boolean {
+    return rolesThatCannotSelfSelect.has(roleType as RoleType);
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-white pb-24">
@@ -149,14 +170,37 @@ export const GameRoom: React.FC = () => {
           selectedId={selectedId}
           onSelect={toggleSelect}
           myId={me?.id || ''}
-          disableSelfSelect={gameState.phase === GamePhase.NIGHT && me?.role?.type === RoleType.DREAMKEEPER}
+          disableSelfSelect={cannotSelfSelect(me?.role?.type)}
           werewolfTargets={gameState.werewolfTargets}
-          disabledIds={secondTarget ? [secondTarget] : []}
+          disabledIds={(() => {
+            const disabled: string[] = [];
+
+            if (gameState.phase == GamePhase.VOTING) {
+              disabled.length = 0;
+            }
+
+            // Magician: Can't select the same player twice
+            if (secondTarget && me?.role?.type === RoleType.MAGICIAN) {
+              disabled.push(secondTarget);
+            }
+
+            // Guard: Can't guard the same person for two consecutive nights
+            if (me?.role?.type === RoleType.GUARD && me?.role?.lastProtectedId && me?.role?.lastProtectedNight !== undefined) {
+              // Only disable if the last protection was on the immediately previous night
+              if (me.role.lastProtectedNight === gameState.nightNumber - 1) {
+                disabled.push(me.role.lastProtectedId);
+              }
+            }
+
+            return disabled;
+          })()}
+          seerResults={seerResults}
+          nightStatus={nightStatus}
         />
       </div>
 
       {/* Footer Actions */}
-      <ActionPanel selectedId={selectedId} myPlayer={me} secondTarget={secondTarget} setSecondTarget={setSecondTarget} />
+      <ActionPanel selectedId={selectedId} myPlayer={me} secondTarget={secondTarget} setSecondTarget={setSecondTarget} setNightStatus={setNightStatus} />
     </div>
   );
 };

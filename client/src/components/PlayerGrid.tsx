@@ -8,10 +8,12 @@ interface PlayerGridProps {
   myId: string;
   disableSelfSelect?: boolean; // For roles like Dreamkeeper that can't target themselves
   werewolfTargets?: Record<string, string> | null; // werewolfId -> targetId
-  disabledIds?: string[]; // Additional player IDs to disable (e.g., Magician's first target)
+  disabledIds?: string[]; // Player IDs that cannot be selected (e.g., Magician's first target, Guard's last protected)
+  seerResults?: Record<string, boolean>; // targetId -> isWerewolf
+  nightStatus?: Record<string, { protected?: boolean; poisoned?: boolean; asleep?: boolean }>; // Optimistic UI updates
 }
 
-export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onSelect, myId, disableSelfSelect = false, werewolfTargets, disabledIds = [] }) => {
+export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onSelect, myId, disableSelfSelect = false, werewolfTargets, disabledIds = [], seerResults = {}, nightStatus = {} }) => {
   // Define colors for different werewolves
   const werewolfColors = [
     { ring: 'ring-red-500', bg: 'bg-red-500', text: 'text-red-500' },
@@ -88,6 +90,25 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onS
             {isMe && <span className="text-xs text-blue-300">(You)</span>}
             {isDead && <span className="text-xs text-red-500 font-bold">DEAD</span>}
 
+            {/* Night Status Indicators */}
+            <div className="flex gap-1 mt-1">
+              {((player.protected || nightStatus[player.id]?.protected) && !isDead) && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-600 text-white font-semibold" title="Protected">
+                  🛡️
+                </span>
+              )}
+              {((player.poisoned || nightStatus[player.id]?.poisoned) && !isDead) && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-600 text-white font-semibold" title="Poisoned">
+                  ☠️
+                </span>
+              )}
+              {((player.asleep || nightStatus[player.id]?.asleep) && !isDead) && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-600 text-white font-semibold" title="Asleep">
+                  💤
+                </span>
+              )}
+            </div>
+
             {/* Werewolf name labels */}
             {targetingWerewolves.length > 0 && !isDead && (
               <div className="mt-1 flex flex-wrap gap-1 justify-center">
@@ -113,9 +134,37 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onS
             {isInDisabledList && !isDead && (
               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <span className="bg-black bg-opacity-80 text-cyan-300 text-xs px-2 py-1 rounded-lg">
-                  Already selected
+                  Cannot select
                 </span>
               </div>
+            )}
+
+            {/* Seer Results Indicator */}
+            {seerResults && seerResults[player.id] !== undefined && !isDead && (
+              <>
+                {/* Persistent Badge */}
+                <div className="absolute top-2 right-2">
+                  {seerResults[player.id] ? (
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold border-2 border-white shadow-md" title="Werewolf">
+                      W
+                    </span>
+                  ) : (
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500 text-white text-xs font-bold border-2 border-white shadow-md" title="Villager">
+                      V
+                    </span>
+                  )}
+                </div>
+
+                {/* Hover Tooltip */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <span className={`
+                    bg-black bg-opacity-90 text-xs px-3 py-1.5 rounded-lg font-bold shadow-lg transform translate-y-8
+                    ${seerResults[player.id] ? 'text-red-500' : 'text-green-400'}
+                  `}>
+                    {seerResults[player.id] ? 'BAD' : 'GOOD'}
+                  </span>
+                </div>
+              </>
             )}
           </div>
         );

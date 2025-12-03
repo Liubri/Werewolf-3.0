@@ -25,6 +25,7 @@ export const RoleCard: React.FC<RoleCardProps> = ({ roleName, roleType, descript
       case RoleType.DREAMKEEPER: return 'bg-indigo-900 border-indigo-500';
       case RoleType.WOLFBEAUTY: return 'bg-pink-900 border-pink-500';
       case RoleType.MAGICIAN: return 'bg-cyan-900 border-cyan-500';
+      case RoleType.GUARD: return 'bg-orange-900 border-orange-500';
       default: return 'bg-gray-800 border-gray-500';
     }
   };

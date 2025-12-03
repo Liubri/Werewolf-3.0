@@ -17,7 +17,7 @@ export class Seer extends Role {
       if (target && target.role) {
         const isWerewolf = target.role.team === Team.WEREWOLF;
         console.log('Seer result:', target.name, 'is werewolf?', isWerewolf);
-        game.sendSeerResult(player.id, target.name, isWerewolf);
+        game.sendSeerResult(player.id, target.id, target.name, isWerewolf);
       }
     }
   }

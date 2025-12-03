@@ -70,6 +70,8 @@ io.on('connection', (socket) => {
         player.role.handleNightAction(game, player, data.targetId, data);
       } else if (player.role.type === 'MAGICIAN') {
         player.role.handleNightAction(game, player, data.targetId, data);
+      } else if (player.role.type === 'GUARD') {
+        player.role.handleNightAction(game, player, data.targetId);
       }
     }
   });

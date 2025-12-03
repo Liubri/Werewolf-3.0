@@ -7,8 +7,9 @@ interface ActionPanelProps {
   myPlayer: any;
   secondTarget: string | null;
   setSecondTarget: (target: string | null) => void;
+  setNightStatus: React.Dispatch<React.SetStateAction<Record<string, { protected?: boolean; poisoned?: boolean; asleep?: boolean }>>>;
 }
-export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, secondTarget, setSecondTarget }) => {
+export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, secondTarget, setSecondTarget, setNightStatus: setNightStatus }) => {
   const { gameState, sendNightAction, sendVote, nextPhase } = useSocket();
   const [clicked, setClicked] = useState(false);
   const [clicked_2, setClicked_2] = useState(false);
@@ -40,7 +41,8 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
     VILLAGER: 'Vote',
     HUNTER: '',
     WOLFBEAUTY: 'Confirm Kill',
-    MAGICIAN: 'Swap'
+    MAGICIAN: 'Swap',
+    GUARD: 'Guard',
   };
 
   const roleType: RoleType = myPlayer.role!.type!; // non-null assertion
@@ -52,40 +54,77 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
     if (!selectedId) return;
 
     if (isNight) {
-      // Role specific actions
-      if (myPlayer.role?.type === RoleType.WEREWOLF) {
-        setClicked(true);
-        sendNightAction('KILL', selectedId);
-      } else if (myPlayer.role?.type === RoleType.SEER) {
-        setClicked(true);
-        sendNightAction('CHECK', selectedId);
-      } else if (myPlayer.role?.type === RoleType.DREAMKEEPER) {
-        setClicked(true);
-        sendNightAction('SLEEP', selectedId);
-      } else if (myPlayer.role?.type === RoleType.WITCH) {
-        setClicked(true);
-        // Witch UI is complex (Save/Poison). 
-        // For MVP, if they select someone, assume Poison?
-        // Or we need separate buttons.
-        // Let's just implement Poison here for simplicity if they select someone.
-        // Save is usually a prompt "X is dying, save?".
-        sendNightAction(type ? 'SAVE' : 'POISON', selectedId, { potionType: type ?? 'POISON' });
-      } else if (myPlayer.role?.type === RoleType.WOLFBEAUTY) {
-        setClicked(true);
-        sendNightAction('CHARM', selectedId, { charmType: type ?? 'CHARM' });
-      } else if (myPlayer.role?.type === RoleType.MAGICIAN) {
-        if (!secondTarget) {
-          // First selection - store it and wait for second
-          setSecondTarget(selectedId);
-          console.log("First selection: ", selectedId);
-          return;
+      // Configuration map for role actions
+      const roleActionConfig: Record<RoleType, {
+        action: string;
+        data?: any;
+        statusEffect?: { protected?: boolean; poisoned?: boolean; asleep?: boolean };
+        customHandler?: () => boolean; // Return false to skip default handling
+      }> = {
+        [RoleType.WEREWOLF]: { action: 'KILL' },
+        [RoleType.SEER]: { action: 'CHECK' },
+        [RoleType.DREAMKEEPER]: {
+          action: 'SLEEP',
+          statusEffect: { asleep: true }
+        },
+        [RoleType.WITCH]: {
+          action: type ? 'SAVE' : 'POISON',
+          data: { potionType: type ?? 'POISON' },
+          statusEffect: type ? undefined : { poisoned: true } // Only poison gets optimistic update
+        },
+        [RoleType.GUARD]: {
+          action: 'GUARD',
+          statusEffect: { protected: true }
+        },
+        [RoleType.WOLFBEAUTY]: {
+          action: 'CHARM',
+          data: { charmType: type ?? 'CHARM' }
+        },
+        [RoleType.MAGICIAN]: {
+          action: 'SWAP',
+          customHandler: () => {
+            if (!secondTarget) {
+              setSecondTarget(selectedId);
+              console.log("First selection: ", selectedId);
+              return false; // Skip default handling
+            }
+            console.log("Second selection: ", selectedId);
+            console.log("Swapping:", secondTarget, "<->", selectedId);
+            return true; // Continue with default handling
+          },
+          data: { secondaryTargetId: secondTarget }
+        },
+        [RoleType.VILLAGER]: { action: '' }, // No night action
+        [RoleType.HUNTER]: { action: '' }, // No night action
+      };
+
+      const roleType = myPlayer.role?.type;
+      const config = roleActionConfig[roleType as RoleType];
+
+      if (config) {
+        // Run custom handler if exists
+        if (config.customHandler && !config.customHandler()) {
+          return; // Custom handler said to skip
         }
-        // Second selection - send both targets
-        console.log("Second selection: ", selectedId);
-        console.log("Swapping:", secondTarget, "<->", selectedId);
-        setClicked(true);
-        sendNightAction('SWAP', selectedId, { secondaryTargetId: secondTarget });
-        setSecondTarget(null);
+
+        // Apply optimistic UI update if configured
+        if (config.statusEffect) {
+          setNightStatus(prev => ({
+            ...prev,
+            [selectedId]: config.statusEffect!
+          }));
+        }
+
+        // Send action if configured
+        if (config.action) {
+          setClicked(true);
+          sendNightAction(config.action, selectedId, config.data);
+
+          // Reset second target for Magician after sending
+          if (roleType === RoleType.MAGICIAN) {
+            setSecondTarget(null);
+          }
+        }
       }
     } else if (isDay) {
       setClicked(true);
