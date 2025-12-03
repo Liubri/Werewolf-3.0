@@ -101,7 +101,8 @@ export const GameRoom: React.FC = () => {
 
   const rolesThatCannotSelfSelect = new Set([
     RoleType.SEER,
-    RoleType.DREAMKEEPER
+    RoleType.DREAMKEEPER,
+    RoleType.DEMONHUNTER,
     // add more roles here easily
   ]);
 

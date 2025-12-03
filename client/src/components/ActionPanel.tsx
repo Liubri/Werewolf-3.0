@@ -24,6 +24,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
   const isNight = gameState.phase === GamePhase.NIGHT;
   const isDay = gameState.phase === GamePhase.DAY || gameState.phase === GamePhase.VOTING;
   const isAlive = myPlayer.isAlive;
+  const nightNumber = gameState.nightNumber;
 
   if (!isAlive) {
     return (
@@ -31,6 +32,14 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
         <p className="text-gray-400">You are dead. You can watch but not speak.</p>
       </div>
     );
+  }
+
+  function isButtonDisabled() {
+    if (clicked) return true;
+    if (!selectedId) return true;
+    if (myPlayer.role?.type === RoleType.VILLAGER && isNight) return true;
+    if (myPlayer.role?.type === RoleType.DEMONHUNTER && nightNumber < 2) return true;
+    return false;
   }
 
   const nightButtonTexts: Record<RoleType, string> = {
@@ -43,6 +52,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
     WOLFBEAUTY: 'Confirm Kill',
     MAGICIAN: 'Swap',
     GUARD: 'Guard',
+    DEMONHUNTER: 'Hunt',
   };
 
   const roleType: RoleType = myPlayer.role!.type!; // non-null assertion
@@ -96,6 +106,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
         },
         [RoleType.VILLAGER]: { action: '' }, // No night action
         [RoleType.HUNTER]: { action: '' }, // No night action
+        [RoleType.DEMONHUNTER]: { action: 'HUNT' }, // No night action
       };
 
       const roleType = myPlayer.role?.type;
@@ -177,7 +188,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
           {(myPlayer.role?.type !== RoleType.HUNTER || isDay) && (
             <button
               onClick={() => handleAction()}
-              disabled={clicked || !selectedId || (myPlayer.role?.type === RoleType.VILLAGER && isNight)}
+              disabled={isButtonDisabled()}
               className={`
               font-bold py-2 px-6 rounded transition disabled:opacity-50 disabled:cursor-not-allowed
               ${isNight ? 'bg-purple-600 hover:bg-purple-700' : 'bg-red-600 hover:bg-red-700'}

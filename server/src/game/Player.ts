@@ -1,4 +1,5 @@
 import { Role } from '../roles/Role';
+import { Team } from './types';
 
 export class Player {
   id: string;
@@ -29,6 +30,14 @@ export class Player {
     this.asleep = false;
     this.consecutiveSleepNights = 0;
     this.lastSleptNight = -1;
+  }
+
+  isGoodTeam() {
+    return this.role?.team === Team.VILLAGER;
+  }
+
+  isBadTeam() {
+    return this.role?.team === Team.WEREWOLF;
   }
 
   resetNightStatus() {

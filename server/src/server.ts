@@ -65,12 +65,13 @@ io.on('connection', (socket) => {
         player.role.handleNightAction(game, player, data.targetId);
       } else if (player.role.type === 'WITCH') {
         player.role.handleNightAction(game, player, data.targetId, data);
-        console.log('Witch action handled:', data.potionType);
       } else if (player.role.type === 'WOLFBEAUTY') {
         player.role.handleNightAction(game, player, data.targetId, data);
       } else if (player.role.type === 'MAGICIAN') {
         player.role.handleNightAction(game, player, data.targetId, data);
       } else if (player.role.type === 'GUARD') {
+        player.role.handleNightAction(game, player, data.targetId);
+      } else if (player.role.type === 'DEMONHUNTER') {
         player.role.handleNightAction(game, player, data.targetId);
       }
     }

@@ -10,6 +10,7 @@ import { Hunter } from '../roles/Hunter';
 import { WolfBeauty } from '../roles/WolfBeauty';
 import { Magician } from '../roles/Magician';
 import { Guard } from '../roles/Guard';
+import { Demonhunter } from '../roles/Demonhunter';
 
 export class Game {
   id: string;
@@ -33,7 +34,7 @@ export class Game {
 
   // Dreamkeeper State
   sleepingTarget: string | null = null;
-  dreamkeeperId: string | null = null;
+  dreamKeeperId: string | null = null;
   nightNumber: number = 0;
 
   // Voting State
@@ -52,6 +53,11 @@ export class Game {
   swappedIds: [string, string] | null = null;
   swappedPlayersHistory: Set<string> = new Set(); // Track players who have been swapped
 
+  // Demonhunter State
+  demonHunterId: string | null = null;
+  huntedTarget: string | null = null;
+  demonHunterDies: string | null = null;
+
   constructor(id: string, hostId: string, onStateChange: any, onPrivateMessage: any) {
     this.id = id;
     this.hostId = hostId;
@@ -61,13 +67,14 @@ export class Game {
       roleCounts: {
         [RoleType.WEREWOLF]: 1,
         [RoleType.VILLAGER]: 1,
-        [RoleType.SEER]: 1,
-        [RoleType.WITCH]: 0,
+        [RoleType.SEER]: 0,
+        [RoleType.WITCH]: 1,
         [RoleType.DREAMKEEPER]: 0,
         [RoleType.HUNTER]: 0,
         [RoleType.WOLFBEAUTY]: 0,
         [RoleType.MAGICIAN]: 0,
-        [RoleType.GUARD]: 1,
+        [RoleType.GUARD]: 0,
+        [RoleType.DEMONHUNTER]: 1,
       }
     };
   }
@@ -122,6 +129,7 @@ export class Game {
     addRole(WolfBeauty, this.settings.roleCounts[RoleType.WOLFBEAUTY]);
     addRole(Magician, this.settings.roleCounts[RoleType.MAGICIAN]);
     addRole(Guard, this.settings.roleCounts[RoleType.GUARD]);
+    addRole(Demonhunter, this.settings.roleCounts[RoleType.DEMONHUNTER]);
 
     // Fill rest with Villagers
     while (roleStack.length < playerIds.length) {
@@ -134,9 +142,11 @@ export class Game {
         player.role = roleStack[index];
         // Track Dreamkeeper player ID
         if (player.role.type === RoleType.DREAMKEEPER) {
-          this.dreamkeeperId = pid;
+          this.dreamKeeperId = pid;
         } else if (player.role.type === RoleType.WOLFBEAUTY) {
           this.wolfBeautyId = pid;
+        } else if (player.role.type === RoleType.DEMONHUNTER) {
+          this.demonHunterId = pid;
         }
       }
     });
@@ -156,6 +166,7 @@ export class Game {
     this.savedTarget = null;
     this.sleepingTarget = null;
     this.charmedTarget = null;
+    this.huntedTarget = null;
     this.swappedIds = null; // Reset swap for new night (but keep history)
     this.players.forEach(p => p.resetNightStatus());
 
@@ -344,13 +355,23 @@ export class Game {
     }
   }
 
+  demonHunterAction(targetId: string) {
+    const resolvedTarget = this.swappedTargetId(targetId);
+    const player = this.players.get(resolvedTarget)
+    if (player?.isBadTeam()) {
+      this.huntedTarget = resolvedTarget;
+    } else {
+      this.demonHunterDies = this.demonHunterId;
+    }
+  }
+
   endNight() {
     this.werewolfTargets.clear();
     // Handle Dreamkeeper auto-targeting if no choice was made
-    if (this.dreamkeeperId && !this.sleepingTarget) {
-      const dreamkeeper = this.players.get(this.dreamkeeperId);
+    if (this.dreamKeeperId && !this.sleepingTarget) {
+      const dreamkeeper = this.players.get(this.dreamKeeperId);
       if (dreamkeeper && dreamkeeper.isAlive) {
-        this.handleDreamkeeperAutoTarget(this.dreamkeeperId);
+        this.handleDreamkeeperAutoTarget(this.dreamKeeperId);
       }
     }
 
@@ -370,24 +391,34 @@ export class Game {
       }
     }
 
-    // Witch poison
-    if (this.witchPoisonTarget) {
-      deadPlayers.add(this.witchPoisonTarget);
+    // Demon Hunter kill
+    if (this.huntedTarget) {
+      deadPlayers.add(this.huntedTarget);
+    } else if (this.demonHunterDies) {
+      deadPlayers.add(this.demonHunterDies);
     }
 
+    // Witch poison
+    if (this.witchPoisonTarget) {
+      if (this.demonHunterId === this.witchPoisonTarget) {
+        console.log("Demon hunter immune to witch poison");
+      } else {
+        deadPlayers.add(this.witchPoisonTarget);
+      }
+    }
+
+    // Witch save target
     if (this.witchSaveUsedThisTurn && this.savedTarget) {
       deadPlayers.delete(this.savedTarget);
     }
 
     //If witch saved and guard protected save target
-    console.log("Protected Target", this.protectedTarget);
-    console.log("SAVED Target", this.savedTarget);
     if (this.protectedTarget && this.savedTarget === this.protectedTarget) {
       deadPlayers.add(this.protectedTarget)
     }
 
     // Check if Dreamkeeper died - if so, sleeping player also dies
-    const dreamkeeperDied = this.dreamkeeperId && deadPlayers.has(this.dreamkeeperId);
+    const dreamkeeperDied = this.dreamKeeperId && deadPlayers.has(this.dreamKeeperId);
     if (dreamkeeperDied && this.sleepingTarget) {
       console.log('Dreamkeeper died, sleeping player also dies:', this.sleepingTarget);
       deadPlayers.add(this.sleepingTarget);
@@ -404,6 +435,17 @@ export class Game {
     deadPlayers.forEach(pid => {
       const p = this.players.get(pid);
       if (p) p.die();
+    });
+
+    // Handle deaths from 2 consecutive nights of sleep
+    const sleepDeaths: string[] = [];
+    this.players.forEach(player => {
+      if (player.isAlive && player.consecutiveSleepNights >= 2) {
+        console.log('Player died from sleeping 2 consecutive nights:', player.name);
+        sleepDeaths.push(player.id);
+        player.die();
+        player.resetSleepTracking();
+      }
     });
 
     // Check if Hunter died and trigger revenge
@@ -430,17 +472,6 @@ export class Game {
   }
 
   endDay() {
-    // Handle deaths from 2 consecutive nights of sleep
-    const sleepDeaths: string[] = [];
-    this.players.forEach(player => {
-      if (player.isAlive && player.consecutiveSleepNights >= 2) {
-        console.log('Player died from sleeping 2 consecutive nights:', player.name);
-        sleepDeaths.push(player.id);
-        player.die();
-        player.resetSleepTracking();
-      }
-    });
-
     // Resolve voting
     const votes: Record<string, number> = {};
     this.dayVotes.forEach(target => {
