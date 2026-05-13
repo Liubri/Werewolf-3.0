@@ -21,7 +21,8 @@ export enum RoleType {
   WOLFBEAUTY = 'WOLFBEAUTY',
   MAGICIAN = 'MAGICIAN',
   GUARD = 'GUARD',
-  DEMONHUNTER = 'DEMONHUNTER'
+  DEMONHUNTER = 'DEMONHUNTER',
+  KNIGHT = 'KNIGHT',
 }
 
 export interface Player {
@@ -43,9 +44,10 @@ export interface Player {
     sleepingTarget?: string; // Dreamkeeper: current sleeping target
   } | null;
   // Night status
-  protected?: boolean;
-  poisoned?: boolean;
-  asleep?: boolean;
+  protected?: string;
+  poisoned?: string;
+  asleep?: string;
+  knightRevealed?: boolean;
 }
 
 export interface GameState {

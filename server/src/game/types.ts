@@ -21,7 +21,8 @@ export enum RoleType {
   WOLFBEAUTY = 'WOLFBEAUTY',
   MAGICIAN = 'MAGICIAN',
   GUARD = 'GUARD',
-  DEMONHUNTER = 'DEMONHUNTER'
+  DEMONHUNTER = 'DEMONHUNTER',
+  KNIGHT = 'KNIGHT'
 }
 
 export interface GameSettings {

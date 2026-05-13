@@ -14,7 +14,7 @@ export class Guard extends Role {
 
   handleNightAction(game: Game, player: Player, targetId?: string): void {
     if (targetId) {
-      game.protectPlayer(targetId, this);
+      game.protectPlayer(targetId, this, player.id);
     }
   }
 }

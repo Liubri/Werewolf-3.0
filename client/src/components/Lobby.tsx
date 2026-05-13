@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useSocket } from '../context/SocketContext';
-import { ClientPageRoot } from 'next/dist/client/components/client-page';
 
 export const Lobby: React.FC = () => {
   const { createGame, joinGame, gameState, startGame, isConnected, socketId } = useSocket();

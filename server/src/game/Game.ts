@@ -11,6 +11,7 @@ import { WolfBeauty } from '../roles/WolfBeauty';
 import { Magician } from '../roles/Magician';
 import { Guard } from '../roles/Guard';
 import { Demonhunter } from '../roles/Demonhunter';
+import { Knight } from '../roles/Knight';
 
 export class Game {
   id: string;
@@ -27,10 +28,12 @@ export class Game {
   nightKillTarget: string | null = null;
   werewolfVotes: Map<string, string> = new Map(); // voterId -> targetId
   werewolfTargets: Map<string, string> = new Map(); // werewolfId -> currentTargetId (for real-time sharing)
-  protectedTarget: string | null = null;
   savedTarget: string | null = null;
   witchSaveUsedThisTurn: boolean = false;
   witchPoisonTarget: string | null = null;
+
+  // Guard State
+  protectedTarget: string | null = null;
 
   // Dreamkeeper State
   sleepingTarget: string | null = null;
@@ -57,6 +60,10 @@ export class Game {
   demonHunterId: string | null = null;
   huntedTarget: string | null = null;
   demonHunterDies: string | null = null;
+  
+  // Knight State
+  knightId: string | null = null;
+  knightTarget: string | null = null;
 
   constructor(id: string, hostId: string, onStateChange: any, onPrivateMessage: any) {
     this.id = id;
@@ -73,8 +80,9 @@ export class Game {
         [RoleType.HUNTER]: 0,
         [RoleType.WOLFBEAUTY]: 0,
         [RoleType.MAGICIAN]: 0,
-        [RoleType.GUARD]: 0,
-        [RoleType.DEMONHUNTER]: 1,
+        [RoleType.GUARD]: 1,
+        [RoleType.DEMONHUNTER]: 0,
+        [RoleType.KNIGHT]: 1
       }
     };
   }
@@ -130,6 +138,7 @@ export class Game {
     addRole(Magician, this.settings.roleCounts[RoleType.MAGICIAN]);
     addRole(Guard, this.settings.roleCounts[RoleType.GUARD]);
     addRole(Demonhunter, this.settings.roleCounts[RoleType.DEMONHUNTER]);
+    addRole(Knight, this.settings.roleCounts[RoleType.KNIGHT]);
 
     // Fill rest with Villagers
     while (roleStack.length < playerIds.length) {
@@ -147,6 +156,8 @@ export class Game {
           this.wolfBeautyId = pid;
         } else if (player.role.type === RoleType.DEMONHUNTER) {
           this.demonHunterId = pid;
+        } else if (player.role.type === RoleType.KNIGHT) {
+          this.knightId = pid;
         }
       }
     });
@@ -167,6 +178,7 @@ export class Game {
     this.sleepingTarget = null;
     this.charmedTarget = null;
     this.huntedTarget = null;
+    this.knightTarget = null;
     this.swappedIds = null; // Reset swap for new night (but keep history)
     this.players.forEach(p => p.resetNightStatus());
 
@@ -234,12 +246,12 @@ export class Game {
     this.broadcastState();
   }
 
-  protectPlayer(targetId: string, guardRole?: any) {
+  protectPlayer(targetId: string, guardRole: any, guardId: string) {
     console.log('Protecting player:', targetId);
     const resolvedTarget = this.swappedTargetId(targetId);
     const player = this.players.get(resolvedTarget);
     if (player) {
-      player.protected = true
+      player.protectedId = guardId;
     }
     this.protectedTarget = resolvedTarget;
 
@@ -257,6 +269,7 @@ export class Game {
     const player = this.players.get(resolvedTarget);
     if (player) {
       player.putToSleep(this.nightNumber);
+      player.asleepId = dreamkeeperId;
     }
   }
 
@@ -337,13 +350,15 @@ export class Game {
     // console.log("Has save potion", player.role.hasSavePotion);
     // console.log("Has poison potion", player.role.hasPoisonPotion);
     const resolvedTarget = this.swappedTargetId(targetId);
+    const targetPlayer = this.players.get(resolvedTarget);
     if (action === 'SAVE' && player.role.hasSavePotion) {
       this.witchSaveUsedThisTurn = true;
       this.savedTarget = targetId;
       player.role.useSave();
-    } else if (action === 'POISON' && player.role.hasPoisonPotion && targetId) {
+    } else if (action === 'POISON' && player.role.hasPoisonPotion && targetPlayer) {
       this.witchPoisonTarget = resolvedTarget;
       player.role.usePoison();
+      targetPlayer.poisonedId = playerId;
     }
     this.broadcastState();
   }
@@ -364,6 +379,26 @@ export class Game {
       this.demonHunterDies = this.demonHunterId;
     }
   }
+  
+  knightAction(targetId: string) {
+    const resolvedTarget = this.swappedTargetId(targetId);
+    const player = this.players.get(resolvedTarget);
+    this.knightTarget = resolvedTarget;
+
+    if (this.wolfBeautyId === resolvedTarget) {
+      // Remove charm if Knight targets Wolf Beauty
+      this.charmedTarget = null; 
+      const wolfBeauty = this.players.get(this.wolfBeautyId);
+      wolfBeauty?.die();
+    } else if (player?.isBadTeam()) {
+      player.die();
+    } else {
+      const knight = this.players.get(this.knightId!);
+      knight?.die();
+    }
+    this.broadcastState();
+  }
+  
 
   endNight() {
     this.werewolfTargets.clear();
@@ -429,6 +464,11 @@ export class Game {
     if (wolfBeautyDied && this.charmedTarget) {
       console.log('Wolf Beauty died, charmed player also dies:', this.charmedTarget);
       deadPlayers.add(this.charmedTarget);
+    }
+
+    // Knight action
+    if (this.knightTarget && this.knightTarget === this.wolfBeautyId) {
+      deadPlayers.delete(this.charmedTarget!);
     }
 
     // Apply deaths
@@ -541,9 +581,10 @@ export class Game {
         // Show role ONLY if game over or if it's the player themselves
         role: (this.phase === GamePhase.GAME_OVER || p.id === player.id) ? p.role : null,
         // Night status
-        protected: p.protected,
-        poisoned: p.poisoned,
-        asleep: p.asleep,
+        protected: p.protectedId,
+        poisoned: p.poisonedId,
+        asleep: p.asleepId,
+        knightRevealed: p.knightRevealed
       }));
 
       // Convert werewolfTargets Map to object for JSON serialization

@@ -10,13 +10,16 @@ export class Player {
   isReady: boolean;
   
   // Night status
-  protected: boolean;
-  poisoned: boolean;
+  protectedId: string | null;
+  poisonedId: string | null;
   
   // Sleep status (Dreamkeeper ability)
-  asleep: boolean;
+  asleepId: string | null;
   consecutiveSleepNights: number;
   lastSleptNight: number;
+
+  // Track if Knight has revealed themselves
+  knightRevealed: boolean; 
 
   constructor(id: string, name: string, socketId: string) {
     this.id = id;
@@ -25,9 +28,10 @@ export class Player {
     this.role = null;
     this.isAlive = true;
     this.isReady = false;
-    this.protected = false;
-    this.poisoned = false;
-    this.asleep = false;
+    this.protectedId = null;
+    this.poisonedId = null;
+    this.asleepId = null;
+    this.knightRevealed = false;
     this.consecutiveSleepNights = 0;
     this.lastSleptNight = -1;
   }
@@ -41,14 +45,12 @@ export class Player {
   }
 
   resetNightStatus() {
-    this.protected = false;
-    this.asleep = false;
-    // Poison persists if set, but usually handled by death logic
+    this.protectedId = null;
+    this.poisonedId = null;
+    this.asleepId = null;
   }
 
   putToSleep(nightNumber: number) {
-    this.asleep = true;
-    
     // Check if this is consecutive
     if (this.lastSleptNight === nightNumber - 1) {
       this.consecutiveSleepNights++;
@@ -60,7 +62,7 @@ export class Player {
   }
 
   wakeUp() {
-    this.asleep = false;
+    this.asleepId = null;
   }
 
   resetSleepTracking() {

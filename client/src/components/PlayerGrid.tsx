@@ -92,19 +92,24 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onS
 
             {/* Night Status Indicators */}
             <div className="flex gap-1 mt-1">
-              {((player.protected || nightStatus[player.id]?.protected) && !isDead) && (
+              {((player.protected && player.protected === myId) && !isDead) && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-blue-600 text-white font-semibold" title="Protected">
                   🛡️
                 </span>
               )}
-              {((player.poisoned || nightStatus[player.id]?.poisoned) && !isDead) && (
+              {((player.poisoned || player.poisoned === myId) && !isDead) && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-purple-600 text-white font-semibold" title="Poisoned">
                   ☠️
                 </span>
               )}
-              {((player.asleep || nightStatus[player.id]?.asleep) && !isDead) && (
+              {((player.asleep || player.asleep === myId) && !isDead) && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-600 text-white font-semibold" title="Asleep">
                   💤
+                </span>
+              )}
+              {(player.knightRevealed) && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-600 text-white font-semibold" title="Knight">
+                  knight
                 </span>
               )}
             </div>

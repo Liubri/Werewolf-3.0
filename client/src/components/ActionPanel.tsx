@@ -53,6 +53,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
     MAGICIAN: 'Swap',
     GUARD: 'Guard',
     DEMONHUNTER: 'Hunt',
+    KNIGHT: 'Duel',
   };
 
   const roleType: RoleType = myPlayer.role!.type!; // non-null assertion
@@ -107,6 +108,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
         [RoleType.VILLAGER]: { action: '' }, // No night action
         [RoleType.HUNTER]: { action: '' }, // No night action
         [RoleType.DEMONHUNTER]: { action: 'HUNT' }, // No night action
+        [RoleType.KNIGHT]: { action: 'DUEL' }, // No night action
       };
 
       const roleType = myPlayer.role?.type;
