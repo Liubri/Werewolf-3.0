@@ -1,5 +1,5 @@
 import React from 'react';
-import { Player } from '../types/game';
+import { Player, Team } from '../types/game';
 
 interface PlayerGridProps {
   players: Player[];
@@ -110,6 +110,11 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onS
               {(player.knightRevealed) && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-600 text-white font-semibold" title="Knight">
                   knight
+                </span>
+              )}
+              {(player.graveDiggerId && player.graveDiggerId === myId) && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-700 text-white font-semibold" title={player.role?.team === 'WEREWOLF' ? 'Bad' : 'Good'}>
+                  {player.role?.team === Team.WEREWOLF ? '🐺 Bad' : '🌾 Good'}
                 </span>
               )}
             </div>

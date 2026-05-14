@@ -54,6 +54,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
     GUARD: 'Guard',
     DEMONHUNTER: 'Hunt',
     KNIGHT: 'Duel',
+    GRAVEDIGGER: '',
   };
 
   const roleType: RoleType = myPlayer.role!.type!; // non-null assertion
@@ -109,6 +110,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
         [RoleType.HUNTER]: { action: '' }, // No night action
         [RoleType.DEMONHUNTER]: { action: 'HUNT' }, // No night action
         [RoleType.KNIGHT]: { action: 'DUEL' }, // No night action
+        [RoleType.GRAVEDIGGER]: { action: '' },
       };
 
       const roleType = myPlayer.role?.type;
@@ -187,7 +189,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
             </button>
           )}
 
-          {(myPlayer.role?.type !== RoleType.HUNTER || isDay) && (
+          {(isDay || (isNight && buttonText)) && (
             <button
               onClick={() => handleAction()}
               disabled={isButtonDisabled()}

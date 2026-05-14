@@ -12,6 +12,7 @@ import { Magician } from '../roles/Magician';
 import { Guard } from '../roles/Guard';
 import { Demonhunter } from '../roles/Demonhunter';
 import { Knight } from '../roles/Knight';
+import { Gravedigger } from '../roles/Gravedigger';
 
 export class Game {
   id: string;
@@ -77,12 +78,13 @@ export class Game {
         [RoleType.SEER]: 0,
         [RoleType.WITCH]: 1,
         [RoleType.DREAMKEEPER]: 0,
-        [RoleType.HUNTER]: 0,
+        [RoleType.HUNTER]: 1,
         [RoleType.WOLFBEAUTY]: 0,
         [RoleType.MAGICIAN]: 0,
-        [RoleType.GUARD]: 1,
+        [RoleType.GUARD]: 0,
         [RoleType.DEMONHUNTER]: 0,
-        [RoleType.KNIGHT]: 1
+        [RoleType.KNIGHT]: 0,
+        [RoleType.GRAVEDIGGER]: 1
       }
     };
   }
@@ -139,6 +141,7 @@ export class Game {
     addRole(Guard, this.settings.roleCounts[RoleType.GUARD]);
     addRole(Demonhunter, this.settings.roleCounts[RoleType.DEMONHUNTER]);
     addRole(Knight, this.settings.roleCounts[RoleType.KNIGHT]);
+    addRole(Gravedigger, this.settings.roleCounts[RoleType.GRAVEDIGGER]);
 
     // Fill rest with Villagers
     while (roleStack.length < playerIds.length) {
@@ -532,6 +535,12 @@ export class Game {
       if (p) {
         p.die();
 
+        // Set graveDiggerId when player is voted out
+        const gravediggers = Array.from(this.players.values()).filter(player => player.role && player.role.type === RoleType.GRAVEDIGGER);
+        if (gravediggers.length > 0) {
+          p.graveDiggerId = gravediggers[0].id;
+        }
+
         // Check if Hunter died and trigger revenge
         if (p.role?.type === RoleType.HUNTER && p.role instanceof Hunter && p.role.canUseRevengeAbility) {
           this.dayVotes.clear();
@@ -584,7 +593,8 @@ export class Game {
         protected: p.protectedId,
         poisoned: p.poisonedId,
         asleep: p.asleepId,
-        knightRevealed: p.knightRevealed
+        knightRevealed: p.knightRevealed,
+        graveDiggerId: p.graveDiggerId
       }));
 
       // Convert werewolfTargets Map to object for JSON serialization

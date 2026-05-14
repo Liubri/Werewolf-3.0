@@ -19,7 +19,10 @@ export class Player {
   lastSleptNight: number;
 
   // Track if Knight has revealed themselves
-  knightRevealed: boolean; 
+  knightRevealed: boolean;
+
+  // ID of the gravedigger who can see this player's alignment (set when voted out)
+  graveDiggerId?: string;
 
   constructor(id: string, name: string, socketId: string) {
     this.id = id;

@@ -23,6 +23,7 @@ export enum RoleType {
   GUARD = 'GUARD',
   DEMONHUNTER = 'DEMONHUNTER',
   KNIGHT = 'KNIGHT',
+  GRAVEDIGGER = 'GRAVEDIGGER'
 }
 
 export interface Player {
@@ -48,6 +49,7 @@ export interface Player {
   poisoned?: string;
   asleep?: string;
   knightRevealed?: boolean;
+  graveDiggerId?: string; // Gravedigger: ID of the gravedigger who can see this player's alignment
 }
 
 export interface GameState {
