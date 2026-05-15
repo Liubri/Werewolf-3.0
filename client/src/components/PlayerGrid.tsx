@@ -112,6 +112,11 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onS
                   knight
                 </span>
               )}
+              {(player.foolRevealed) && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-600 text-white font-semibold" title="Fool">
+                  fool
+                </span>
+              )}
               {(player.graveDiggerId && player.graveDiggerId === myId) && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-amber-700 text-white font-semibold" title={player.role?.team === 'WEREWOLF' ? 'Bad' : 'Good'}>
                   {player.role?.team === Team.WEREWOLF ? '🐺 Bad' : '🌾 Good'}

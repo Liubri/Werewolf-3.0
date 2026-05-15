@@ -13,6 +13,7 @@ import { Guard } from '../roles/Guard';
 import { Demonhunter } from '../roles/Demonhunter';
 import { Knight } from '../roles/Knight';
 import { Gravedigger } from '../roles/Gravedigger';
+import { Fool } from '../roles/Fool';
 
 export class Game {
   id: string;
@@ -84,7 +85,8 @@ export class Game {
         [RoleType.GUARD]: 0,
         [RoleType.DEMONHUNTER]: 0,
         [RoleType.KNIGHT]: 0,
-        [RoleType.GRAVEDIGGER]: 1
+        [RoleType.GRAVEDIGGER]: 1,
+        [RoleType.FOOL]: 0
       }
     };
   }
@@ -142,6 +144,7 @@ export class Game {
     addRole(Demonhunter, this.settings.roleCounts[RoleType.DEMONHUNTER]);
     addRole(Knight, this.settings.roleCounts[RoleType.KNIGHT]);
     addRole(Gravedigger, this.settings.roleCounts[RoleType.GRAVEDIGGER]);
+    addRole(Fool, this.settings.roleCounts[RoleType.FOOL]);
 
     // Fill rest with Villagers
     while (roleStack.length < playerIds.length) {
@@ -510,6 +513,11 @@ export class Game {
   }
 
   handleDayVote(voterId: string, targetId: string) {
+    const voter = this.players.get(voterId);
+    if (voter && !voter.canVote) {
+      // Fool cannot vote after being revealed
+      return;
+    }
     this.dayVotes.set(voterId, targetId);
     this.broadcastState();
   }
@@ -533,19 +541,26 @@ export class Game {
     if (target) {
       const p = this.players.get(target);
       if (p) {
-        p.die();
+        // Check if Fool is voted out
+        if (p.role?.type === RoleType.FOOL) {
+          p.foolRevealed = true;
+          p.canVote = false;
+          // Fool survives, so don't die
+        } else {
+          p.die();
 
-        // Set graveDiggerId when player is voted out
-        const gravediggers = Array.from(this.players.values()).filter(player => player.role && player.role.type === RoleType.GRAVEDIGGER);
-        if (gravediggers.length > 0) {
-          p.graveDiggerId = gravediggers[0].id;
-        }
+          // Set graveDiggerId when player is voted out
+          const gravediggers = Array.from(this.players.values()).filter(player => player.role && player.role.type === RoleType.GRAVEDIGGER);
+          if (gravediggers.length > 0) {
+            p.graveDiggerId = gravediggers[0].id;
+          }
 
-        // Check if Hunter died and trigger revenge
-        if (p.role?.type === RoleType.HUNTER && p.role instanceof Hunter && p.role.canUseRevengeAbility) {
-          this.dayVotes.clear();
-          this.triggerHunterRevenge(target);
-          return; // Don't transition to night yet, wait for Hunter revenge
+          // Check if Hunter died and trigger revenge
+          if (p.role?.type === RoleType.HUNTER && p.role instanceof Hunter && p.role.canUseRevengeAbility) {
+            this.dayVotes.clear();
+            this.triggerHunterRevenge(target);
+            return; // Don't transition to night yet, wait for Hunter revenge
+          }
         }
       }
     }
@@ -594,6 +609,7 @@ export class Game {
         poisoned: p.poisonedId,
         asleep: p.asleepId,
         knightRevealed: p.knightRevealed,
+        foolRevealed: p.foolRevealed,
         graveDiggerId: p.graveDiggerId
       }));
 

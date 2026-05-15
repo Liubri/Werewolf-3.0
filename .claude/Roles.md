@@ -12,13 +12,13 @@ This document catalogs all available roles in the Werewolf (狼人杀) game, org
 | Seer | 预言家 | ✓ | Can see a player's alignment (werewolf or good) at night. | Yes | | |
 | Witch | 女巫 | ✓ | Has two potions: one to save a player killed by werewolves, one to poison any player. Can use only one potion per night. | Yes | | Witch can save herself depending on game host setting |
 | Dreamcatcher | 摄梦人 | ✓ | Each night, makes a player a "sleepwalker," rendering them immune to all night kills. If the dreamcatcher dies, the sleepwalker dies too. | Yes | | |
-| Hunter | 猎人 |  | If killed by werewolves or executed, can shoot and kill any player before dying. | No | | Cannot shoot if killed by poison or other special means |
+| Hunter | 猎人 | ✓ | If killed by werewolves or executed, can shoot and kill any player before dying. | No | | Cannot shoot if killed by poison or other special means |
 | Guard | 守卫 | ✓ | Each night, protects one player from being killed by werewolves. Cannot guard the same person two nights in a row. Can guard themselves. | Yes | | |
 | Magician | 魔术师 | ✓ | Switch two players' role cards. | Yes | | |
 | Demon Hunter | 猎魔人 | ✓ | Picks a player to eliminate. If the player is a werewolf, the werewolf is eliminated. If the player is good-aligned, the demon hunter is eliminated. | Yes | | Starting from second night can activate ability. Immune to witch poison |
-| Idiot | 白痴 |  | If voted out, reveals their identity and survives, but loses voting rights. Still can be killed by werewolves. | No | | |
-| Knight | 骑士 |  | Before voting, can reveal their identity and accuse a player. If correct (the player is a werewolf), that player dies. If wrong, the knight dies. | No | | |
-| Gravedigger | 守墓人 |  | Knows the alignment of the person who was voted out during the day phase. | No | | |
+| Fool | 白痴 | ✓ | If voted out, reveals their identity and survives, but loses voting rights. Still can be killed by werewolves. | No | | |
+| Knight | 骑士 | ✓ | Before voting, can reveal their identity and accuse a player. If correct (the player is a werewolf), that player dies. If wrong, the knight dies. | No | | |
+| Gravedigger | 守墓人 | ✓ | Knows the alignment of the person who was voted out during the day phase. | No | | |
 | Crow | 乌鸦 |  | Gives a player two extra votes during day voting phases. | Yes | | |
 | Miracle Merchant | 奇迹商人 |  | Can give witch poison, seer ability, or guard ability to another player at night. If the chosen player is a werewolf, they do not receive the skill, and the Miracle Merchant will be eliminated the next day. | Yes | | |
 | Sequence Prince | 定序王子 |  | Can reveal themselves and activate their skill to rewind time to just before the previous vote, allowing the village to vote again. | No | Yes | |

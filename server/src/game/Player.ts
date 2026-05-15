@@ -21,6 +21,10 @@ export class Player {
   // Track if Knight has revealed themselves
   knightRevealed: boolean;
 
+  // Track if Fool has been voted out (survives but loses voting rights)
+  foolRevealed: boolean;
+  canVote: boolean;
+
   // ID of the gravedigger who can see this player's alignment (set when voted out)
   graveDiggerId?: string;
 
@@ -35,6 +39,8 @@ export class Player {
     this.poisonedId = null;
     this.asleepId = null;
     this.knightRevealed = false;
+    this.foolRevealed = false;
+    this.canVote = true;
     this.consecutiveSleepNights = 0;
     this.lastSleptNight = -1;
   }
