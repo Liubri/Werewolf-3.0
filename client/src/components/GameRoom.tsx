@@ -193,6 +193,14 @@ export const GameRoom: React.FC = () => {
               }
             }
 
+            // Crow: Can't curse the same person for two consecutive nights
+            if (me?.role?.type === RoleType.CROW && me?.role?.lastCursedId && me?.role?.lastCursedNight !== undefined) {
+              // Only disable if the last curse was on the immediately previous night
+              if (me.role.lastCursedNight === gameState.nightNumber - 1) {
+                disabled.push(me.role.lastCursedId);
+              }
+            }
+
             return disabled;
           })()}
           seerResults={seerResults}

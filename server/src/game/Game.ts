@@ -14,6 +14,7 @@ import { Demonhunter } from '../roles/Demonhunter';
 import { Knight } from '../roles/Knight';
 import { Gravedigger } from '../roles/Gravedigger';
 import { Fool } from '../roles/Fool';
+import { Crow } from '../roles/Crow';
 
 export class Game {
   id: string;
@@ -67,6 +68,9 @@ export class Game {
   knightId: string | null = null;
   knightTarget: string | null = null;
 
+  // Crow State
+  crowTargetId: string | null = null;
+
   constructor(id: string, hostId: string, onStateChange: any, onPrivateMessage: any) {
     this.id = id;
     this.hostId = hostId;
@@ -86,7 +90,8 @@ export class Game {
         [RoleType.DEMONHUNTER]: 0,
         [RoleType.KNIGHT]: 0,
         [RoleType.GRAVEDIGGER]: 1,
-        [RoleType.FOOL]: 0
+        [RoleType.FOOL]: 0,
+        [RoleType.CROW]: 0
       }
     };
   }
@@ -145,6 +150,7 @@ export class Game {
     addRole(Knight, this.settings.roleCounts[RoleType.KNIGHT]);
     addRole(Gravedigger, this.settings.roleCounts[RoleType.GRAVEDIGGER]);
     addRole(Fool, this.settings.roleCounts[RoleType.FOOL]);
+    addRole(Crow, this.settings.roleCounts[RoleType.CROW]);
 
     // Fill rest with Villagers
     while (roleStack.length < playerIds.length) {
@@ -185,6 +191,7 @@ export class Game {
     this.charmedTarget = null;
     this.huntedTarget = null;
     this.knightTarget = null;
+    this.crowTargetId = null;
     this.swappedIds = null; // Reset swap for new night (but keep history)
     this.players.forEach(p => p.resetNightStatus());
 
@@ -283,6 +290,16 @@ export class Game {
     const resolvedTarget = this.swappedTargetId(targetId);
     console.log('Charming player:', resolvedTarget);
     this.charmedTarget = resolvedTarget;
+  }
+
+  crowAction(targetId: string, crowRole: any) {
+    // Cannot curse the same player two nights in a row
+    if (crowRole.lastCursedId === targetId && crowRole.lastCursedNight === this.nightNumber - 1) {
+      return;
+    }
+    crowRole.lastCursedId = targetId;
+    crowRole.lastCursedNight = this.nightNumber;
+    this.crowTargetId = targetId;
   }
 
   swapPlayerIds(playerId1: string, playerId2: string) {
@@ -528,6 +545,11 @@ export class Game {
     this.dayVotes.forEach(target => {
       votes[target] = (votes[target] || 0) + 1;
     });
+
+    // Apply Crow curse: +1 vote to cursed target
+    if (this.crowTargetId) {
+      votes[this.crowTargetId] = (votes[this.crowTargetId] || 0) + 1;
+    }
 
     let maxVotes = 0;
     let target = null;

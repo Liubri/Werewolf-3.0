@@ -30,6 +30,7 @@ export const RoleCard: React.FC<RoleCardProps> = ({ roleName, roleType, descript
       case RoleType.KNIGHT: return 'bg-yellow-900 border-yellow-500';
       case RoleType.GRAVEDIGGER: return 'bg-amber-900 border-amber-600';
       case RoleType.FOOL: return 'bg-slate-900 border-slate-500';
+      case RoleType.CROW: return 'bg-neutral-900 border-neutral-600';
       default: return 'bg-gray-800 border-gray-500';
     }
   };

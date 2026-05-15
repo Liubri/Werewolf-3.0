@@ -24,7 +24,8 @@ export enum RoleType {
   DEMONHUNTER = 'DEMONHUNTER',
   KNIGHT = 'KNIGHT',
   GRAVEDIGGER = 'GRAVEDIGGER',
-  FOOL = 'FOOL'
+  FOOL = 'FOOL',
+  CROW = 'CROW'
 }
 
 export interface GameSettings {

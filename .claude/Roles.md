@@ -19,7 +19,7 @@ This document catalogs all available roles in the Werewolf (狼人杀) game, org
 | Fool | 白痴 | ✓ | If voted out, reveals their identity and survives, but loses voting rights. Still can be killed by werewolves. | No | | |
 | Knight | 骑士 | ✓ | Before voting, can reveal their identity and accuse a player. If correct (the player is a werewolf), that player dies. If wrong, the knight dies. | No | | |
 | Gravedigger | 守墓人 | ✓ | Knows the alignment of the person who was voted out during the day phase. | No | | |
-| Crow | 乌鸦 |  | Gives a player two extra votes during day voting phases. | Yes | | |
+| Crow | 乌鸦 | ✓ | Each night, curse a player to receive 1 extra vote during exile voting tomorrow. | Yes | | Cannot curse the same player two nights in a row. Can skip. Can target self. |
 | Miracle Merchant | 奇迹商人 |  | Can give witch poison, seer ability, or guard ability to another player at night. If the chosen player is a werewolf, they do not receive the skill, and the Miracle Merchant will be eliminated the next day. | Yes | | |
 | Sequence Prince | 定序王子 |  | Can reveal themselves and activate their skill to rewind time to just before the previous vote, allowing the village to vote again. | No | Yes | |
 | Pure White Lady | 纯白之女 |  | Checks a person's alignment. If it is a werewolf, that werewolf is immediately eliminated. | Second Night | | Witch cannot save a player eliminated by her check. Guard shield cannot protect against her check |

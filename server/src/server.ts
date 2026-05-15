@@ -75,6 +75,8 @@ io.on('connection', (socket) => {
         player.role.handleNightAction(game, player, data.targetId);
       } else if (player.role.type === 'KNIGHT') {
         player.role.handleNightAction(game, player, data.targetId);
+      } else if (player.role.type === 'CROW') {
+        player.role.handleNightAction(game, player, data.targetId);
       }
     }
   });
