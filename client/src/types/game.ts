@@ -25,7 +25,8 @@ export enum RoleType {
   KNIGHT = 'KNIGHT',
   GRAVEDIGGER = 'GRAVEDIGGER',
   FOOL = 'FOOL',
-  CROW = 'CROW'
+  CROW = 'CROW',
+  MIRACLEMERCHANT = 'MIRACLEMERCHANT'
 }
 
 export interface Player {
@@ -44,6 +45,9 @@ export interface Player {
     lastProtectedNight?: number; // Guard: which night the protection happened
     lastCursedId?: string; // Crow: last player they cursed
     lastCursedNight?: number; // Crow: which night the curse happened
+    merchantPoison?: boolean; // Miracle Merchant: granted poison ability
+    merchantSeer?: boolean; // Miracle Merchant: granted seer ability
+    merchantGuard?: boolean; // Miracle Merchant: granted guard ability
     hasSavePotion?: boolean; // Witch: whether they still have save potion
     hasPoisonPotion?: boolean; // Witch: whether they still have poison potion
     sleepingTarget?: string; // Dreamkeeper: current sleeping target

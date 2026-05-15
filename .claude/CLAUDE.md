@@ -100,7 +100,7 @@ Each role extends `Role` abstract class and implements:
 - **wakeOrder**: Order during night phase (higher = later; -1 = doesn't wake)
 - **handleNightAction(game, player, targetId?, data?)**: Executes role's night action
 
-Current roles: Werewolf, Villager, Seer, Witch, Dreamkeeper, Hunter, WolfBeauty, Magician, Guard, Demonhunter, Knight, Gravedigger, Fool, Crow
+Current roles: Werewolf, Villager, Seer, Witch, Dreamkeeper, Hunter, WolfBeauty, Magician, Guard, Demonhunter, Knight, Gravedigger, Fool, Crow, Miracle Merchant
 
 **Adding a new role**:
 1. Create `server/src/roles/NewRole.ts` extending `Role`

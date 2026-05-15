@@ -15,6 +15,7 @@ import { Knight } from '../roles/Knight';
 import { Gravedigger } from '../roles/Gravedigger';
 import { Fool } from '../roles/Fool';
 import { Crow } from '../roles/Crow';
+import { MiracleMerchant } from '../roles/MiracleMerchant';
 
 export class Game {
   id: string;
@@ -71,6 +72,12 @@ export class Game {
   // Crow State
   crowTargetId: string | null = null;
 
+  // Miracle Merchant State
+  miracleMerchantId: string | null = null;
+  merchantDies: string | null = null;
+  merchantPoisonTargetId: string | null = null;
+  merchantProtectedTargetId: string | null = null;
+
   constructor(id: string, hostId: string, onStateChange: any, onPrivateMessage: any) {
     this.id = id;
     this.hostId = hostId;
@@ -89,9 +96,10 @@ export class Game {
         [RoleType.GUARD]: 0,
         [RoleType.DEMONHUNTER]: 0,
         [RoleType.KNIGHT]: 0,
-        [RoleType.GRAVEDIGGER]: 1,
+        [RoleType.GRAVEDIGGER]: 0,
         [RoleType.FOOL]: 0,
-        [RoleType.CROW]: 0
+        [RoleType.CROW]: 0,
+        [RoleType.MIRACLEMERCHANT]: 1
       }
     };
   }
@@ -151,6 +159,7 @@ export class Game {
     addRole(Gravedigger, this.settings.roleCounts[RoleType.GRAVEDIGGER]);
     addRole(Fool, this.settings.roleCounts[RoleType.FOOL]);
     addRole(Crow, this.settings.roleCounts[RoleType.CROW]);
+    addRole(MiracleMerchant, this.settings.roleCounts[RoleType.MIRACLEMERCHANT]);
 
     // Fill rest with Villagers
     while (roleStack.length < playerIds.length) {
@@ -170,6 +179,8 @@ export class Game {
           this.demonHunterId = pid;
         } else if (player.role.type === RoleType.KNIGHT) {
           this.knightId = pid;
+        } else if (player.role.type === RoleType.MIRACLEMERCHANT) {
+          this.miracleMerchantId = pid;
         }
       }
     });
@@ -192,6 +203,9 @@ export class Game {
     this.huntedTarget = null;
     this.knightTarget = null;
     this.crowTargetId = null;
+    this.merchantDies = null;
+    this.merchantPoisonTargetId = null;
+    this.merchantProtectedTargetId = null;
     this.swappedIds = null; // Reset swap for new night (but keep history)
     this.players.forEach(p => p.resetNightStatus());
 
@@ -260,7 +274,6 @@ export class Game {
   }
 
   protectPlayer(targetId: string, guardRole: any, guardId: string) {
-    console.log('Protecting player:', targetId);
     const resolvedTarget = this.swappedTargetId(targetId);
     const player = this.players.get(resolvedTarget);
     if (player) {
@@ -277,7 +290,6 @@ export class Game {
 
   putPlayerToSleep(targetId: string, dreamkeeperId: string) {
     const resolvedTarget = this.swappedTargetId(targetId);
-    console.log('Putting player to sleep:', resolvedTarget);
     this.sleepingTarget = resolvedTarget;
     const player = this.players.get(resolvedTarget);
     if (player) {
@@ -288,7 +300,6 @@ export class Game {
 
   charmPlayer(targetId: string) {
     const resolvedTarget = this.swappedTargetId(targetId);
-    console.log('Charming player:', resolvedTarget);
     this.charmedTarget = resolvedTarget;
   }
 
@@ -297,9 +308,45 @@ export class Game {
     if (crowRole.lastCursedId === targetId && crowRole.lastCursedNight === this.nightNumber - 1) {
       return;
     }
-    crowRole.lastCursedId = targetId;
+    const resolvedTarget = this.swappedTargetId(targetId);
+    crowRole.lastCursedId = resolvedTarget;
     crowRole.lastCursedNight = this.nightNumber;
-    this.crowTargetId = targetId;
+    this.crowTargetId = resolvedTarget;
+  }
+
+  merchantAction(targetId: string, abilityType: string) {
+    const resolvedTarget = this.swappedTargetId(targetId);
+    const target = this.players.get(resolvedTarget);
+    if (!target) return;
+    if (target.role?.team === 'WEREWOLF') {
+      this.merchantDies = this.miracleMerchantId;
+    } else {
+      if (abilityType === 'POISON') target.merchantPoison = true;
+      else if (abilityType === 'SEER') target.merchantSeer = true;
+      else if (abilityType === 'GUARD') target.merchantGuard = true;
+      this.broadcastState();
+    }
+  }
+
+  handleMerchantPoison(targetId: string) {
+    const resolvedTarget = this.swappedTargetId(targetId);
+    this.merchantPoisonTargetId = resolvedTarget;
+  }
+
+  handleMerchantSeer(senderSocketId: string, targetId: string) {
+    const resolvedTarget = this.swappedTargetId(targetId);
+    const target = this.players.get(resolvedTarget);
+    if (!target) return;
+    this.onPrivateMessage(senderSocketId, 'SEER_RESULT', {
+      targetId: resolvedTarget,
+      targetName: target.name,
+      isWerewolf: target.role?.team === Team.WEREWOLF
+    });
+  }
+
+  handleMerchantGuard(targetId: string) {
+    const resolvedTarget = this.swappedTargetId(targetId);
+    this.merchantProtectedTargetId = resolvedTarget;
   }
 
   swapPlayerIds(playerId1: string, playerId2: string) {
@@ -438,10 +485,10 @@ export class Game {
 
     // Werewolf kill
     if (this.nightKillTarget) {
-      if (this.nightKillTarget !== this.protectedTarget) {
+      if (this.nightKillTarget !== this.protectedTarget && this.nightKillTarget !== this.merchantProtectedTargetId) {
         // Check if target is asleep (immune to death)
         const target = this.players.get(this.nightKillTarget);
-        if (!target?.asleep) {
+        if (!target?.asleepId) {
           deadPlayers.add(this.nightKillTarget);
         } else {
           console.log('Player is asleep and immune to werewolf kill:', this.nightKillTarget);
@@ -456,12 +503,26 @@ export class Game {
       deadPlayers.add(this.demonHunterDies);
     }
 
+    // Miracle Merchant dies if they targeted a werewolf
+    if (this.merchantDies) {
+      deadPlayers.add(this.merchantDies);
+    }
+
     // Witch poison
     if (this.witchPoisonTarget) {
       if (this.demonHunterId === this.witchPoisonTarget) {
         console.log("Demon hunter immune to witch poison");
       } else {
         deadPlayers.add(this.witchPoisonTarget);
+      }
+    }
+
+    // Miracle Merchant poison target
+    if (this.merchantPoisonTargetId) {
+      if (this.demonHunterId === this.merchantPoisonTargetId) {
+        console.log("Demon hunter immune to merchant poison");
+      } else {
+        deadPlayers.add(this.merchantPoisonTargetId);
       }
     }
 
@@ -632,6 +693,9 @@ export class Game {
         asleep: p.asleepId,
         knightRevealed: p.knightRevealed,
         foolRevealed: p.foolRevealed,
+        merchantPoison: p.merchantPoison,
+        merchantSeer: p.merchantSeer,
+        merchantGuard: p.merchantGuard,
         graveDiggerId: p.graveDiggerId
       }));
 

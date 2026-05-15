@@ -56,8 +56,16 @@ io.on('connection', (socket) => {
     const game = gameManager.getGameBySocketId(socket.id);
     const player = gameManager.getPlayerBySocketId(socket.id);
     console.log('Game found:', !!game, 'Player found:', !!player, 'Player role:', player?.role?.type);
-    if (game && player && player.role) {
-      if (player.role.type === 'WEREWOLF') {
+    if (game && player) {
+      // Handle merchant-granted abilities (checked before role dispatch)
+      if (data.action === 'MERCHANT_POISON' && player.merchantPoison) {
+        game.handleMerchantPoison(data.targetId);
+      } else if (data.action === 'MERCHANT_SEER' && player.merchantSeer) {
+        game.handleMerchantSeer(socket.id, data.targetId);
+      } else if (data.action === 'MERCHANT_GUARD' && player.merchantGuard) {
+        game.handleMerchantGuard(data.targetId);
+      } else if (player.role) {
+        if (player.role.type === 'WEREWOLF') {
         player.role.handleNightAction(game, player, data.targetId);
       } else if (player.role.type === 'SEER') {
         player.role.handleNightAction(game, player, data.targetId);
@@ -77,6 +85,9 @@ io.on('connection', (socket) => {
         player.role.handleNightAction(game, player, data.targetId);
       } else if (player.role.type === 'CROW') {
         player.role.handleNightAction(game, player, data.targetId);
+      } else if (player.role.type === 'MIRACLEMERCHANT') {
+        player.role.handleNightAction(game, player, data.targetId, data);
+      }
       }
     }
   });

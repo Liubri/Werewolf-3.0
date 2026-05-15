@@ -25,7 +25,8 @@ export enum RoleType {
   KNIGHT = 'KNIGHT',
   GRAVEDIGGER = 'GRAVEDIGGER',
   FOOL = 'FOOL',
-  CROW = 'CROW'
+  CROW = 'CROW',
+  MIRACLEMERCHANT = 'MIRACLEMERCHANT'
 }
 
 export interface GameSettings {

@@ -13,9 +13,11 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
   const { gameState, sendNightAction, sendVote, nextPhase } = useSocket();
   const [clicked, setClicked] = useState(false);
   const [clicked_2, setClicked_2] = useState(false);
+  const [merchantClicked, setMerchantClicked] = useState(false);
 
   useEffect(() => {
     setClicked(false);
+    setMerchantClicked(false);
     setSecondTarget(null);
   }, [gameState?.phase === GamePhase.NIGHT]);
 
@@ -57,6 +59,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
     GRAVEDIGGER: '',
     FOOL: '',
     CROW: 'Curse',
+    MIRACLEMERCHANT: '',
   };
 
   const roleType: RoleType = myPlayer.role!.type!; // non-null assertion
@@ -115,6 +118,10 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
         [RoleType.GRAVEDIGGER]: { action: '' },
         [RoleType.FOOL]: { action: '' }, // No night action
         [RoleType.CROW]: { action: 'CURSE' },
+        [RoleType.MIRACLEMERCHANT]: {
+          action: 'MERCHANT_GIVE',
+          data: { abilityType: type }
+        },
       };
 
       const roleType = myPlayer.role?.type;
@@ -180,6 +187,32 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
             </button>
           )}
 
+          {isNight && myPlayer.role?.type === RoleType.MIRACLEMERCHANT && (
+            <>
+              <button
+                onClick={() => handleAction('POISON')}
+                disabled={clicked || !selectedId}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Give Poison
+              </button>
+              <button
+                onClick={() => handleAction('SEER')}
+                disabled={clicked || !selectedId}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Give Sight
+              </button>
+              <button
+                onClick={() => handleAction('GUARD')}
+                disabled={clicked || !selectedId}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Give Guard
+              </button>
+            </>
+          )}
+
           {isNight && myPlayer.role?.type === RoleType.WOLFBEAUTY && (
             <button
               onClick={() => {
@@ -190,6 +223,51 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
               className="bg-pink-600 hover:bg-pink-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Charm
+            </button>
+          )}
+
+          {isNight && myPlayer?.merchantPoison && (
+            <button
+              onClick={() => {
+                if (selectedId) {
+                  sendNightAction('MERCHANT_POISON', selectedId);
+                  setMerchantClicked(true);
+                }
+              }}
+              disabled={merchantClicked || !selectedId}
+              className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Use Poison
+            </button>
+          )}
+
+          {isNight && myPlayer?.merchantSeer && (
+            <button
+              onClick={() => {
+                if (selectedId) {
+                  sendNightAction('MERCHANT_SEER', selectedId);
+                  setMerchantClicked(true);
+                }
+              }}
+              disabled={merchantClicked || !selectedId}
+              className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Inspect
+            </button>
+          )}
+
+          {isNight && myPlayer?.merchantGuard && (
+            <button
+              onClick={() => {
+                if (selectedId) {
+                  sendNightAction('MERCHANT_GUARD', selectedId);
+                  setMerchantClicked(true);
+                }
+              }}
+              disabled={merchantClicked || !selectedId}
+              className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Guard
             </button>
           )}
 

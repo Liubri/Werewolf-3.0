@@ -25,6 +25,11 @@ export class Player {
   foolRevealed: boolean;
   canVote: boolean;
 
+  // Miracle Merchant granted abilities
+  merchantPoison: boolean = false;
+  merchantSeer: boolean = false;
+  merchantGuard: boolean = false;
+
   // ID of the gravedigger who can see this player's alignment (set when voted out)
   graveDiggerId?: string;
 
@@ -41,6 +46,9 @@ export class Player {
     this.knightRevealed = false;
     this.foolRevealed = false;
     this.canVote = true;
+    this.merchantPoison = false;
+    this.merchantSeer = false;
+    this.merchantGuard = false;
     this.consecutiveSleepNights = 0;
     this.lastSleptNight = -1;
   }
@@ -57,6 +65,9 @@ export class Player {
     this.protectedId = null;
     this.poisonedId = null;
     this.asleepId = null;
+    this.merchantPoison = false;
+    this.merchantSeer = false;
+    this.merchantGuard = false;
   }
 
   putToSleep(nightNumber: number) {
