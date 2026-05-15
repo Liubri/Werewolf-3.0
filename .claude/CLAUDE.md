@@ -100,7 +100,7 @@ Each role extends `Role` abstract class and implements:
 - **wakeOrder**: Order during night phase (higher = later; -1 = doesn't wake)
 - **handleNightAction(game, player, targetId?, data?)**: Executes role's night action
 
-Current roles: Werewolf, Villager, Seer, Witch, Dreamkeeper, Hunter, WolfBeauty, Magician, Guard, Demonhunter
+Current roles: Werewolf, Villager, Seer, Witch, Dreamkeeper, Hunter, WolfBeauty, Magician, Guard, Demonhunter, Knight, Gravedigger, Fool
 
 **Adding a new role**:
 1. Create `server/src/roles/NewRole.ts` extending `Role`
@@ -154,6 +154,6 @@ All clients in a game room receive state updates; private role data sent only to
 
 - **Minimum 4 players** to start a game (enforced in `Game.start()`)
 - **Socket.io CORS** currently allows all origins in dev (`"*"`) — change for production
-- **Next.js version 9** is older; consider upgrading if adding new Next.js features
+- **Next.js version 16** with React 19 — latest stable versions
 - **Role assignment** is random per game (in `Game.assignRoles()`) with counts from `GameSettings.roleCounts`
 - **Hunter revenge** has a 3-second timeout before auto-terminating
