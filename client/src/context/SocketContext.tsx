@@ -15,6 +15,7 @@ interface SocketContextType {
   sendNightAction: (action: string, targetId?: string, extra?: any) => void;
   sendVote: (targetId: string) => void;
   sendHunterRevenge: (targetId: string) => void;
+  sendWolfKingRevenge: (targetId: string) => void;
   sendWerewolfSelection: (targetId: string) => void; // Real-time selection
   nextPhase: () => void; // Debug
 }
@@ -81,6 +82,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     socket?.emit('hunterRevenge', { targetId });
   };
 
+  const sendWolfKingRevenge = (targetId: string) => {
+    socket?.emit('wolfKingRevenge', { targetId });
+  };
+
   const sendWerewolfSelection = (targetId: string) => {
     socket?.emit('werewolfSelectTarget', { targetId });
   };
@@ -95,12 +100,13 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       socketId,
       gameState, 
       isConnected, 
-      createGame, 
-      joinGame, 
+      createGame,
+      joinGame,
       startGame,
       sendNightAction,
       sendVote,
       sendHunterRevenge,
+      sendWolfKingRevenge,
       sendWerewolfSelection,
       nextPhase
     }}>

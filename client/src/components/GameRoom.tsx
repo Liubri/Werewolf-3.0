@@ -8,13 +8,15 @@ import { RoleCard } from './RoleCard';
 import { HunterRevengeModal } from './HunterRevengeModal';
 
 export const GameRoom: React.FC = () => {
-  const { gameState, socket, sendHunterRevenge, sendWerewolfSelection } = useSocket();
+  const { gameState, socket, sendHunterRevenge, sendWolfKingRevenge, sendWerewolfSelection } = useSocket();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [myId, setMyId] = useState<string>('');
   const [notification, setNotification] = useState<string | null>(null);
   const [showRole, setShowRole] = useState(true);
   const [showHunterRevenge, setShowHunterRevenge] = useState(false);
   const [hunterRevengeData, setHunterRevengeData] = useState<any>(null);
+  const [showWolfKingRevenge, setShowWolfKingRevenge] = useState(false);
+  const [wolfKingRevengeData, setWolfKingRevengeData] = useState<any>(null);
   const [debugShowModal, setDebugShowModal] = useState(false); // DEBUG
   const [secondTarget, setSecondTarget] = useState<string | null>(null); // For Magician's first target
   const [seerResults, setSeerResults] = useState<Record<string, boolean>>({}); // targetId -> isWerewolf
@@ -43,10 +45,22 @@ export const GameRoom: React.FC = () => {
         setTimeout(() => setNotification(null), 10000);
       });
 
+      socket.on('WOLF_KING_REVENGE_TRIGGER', (data: any) => {
+        setWolfKingRevengeData(data);
+        setShowWolfKingRevenge(true);
+      });
+
+      socket.on('WOLF_KING_REVENGE_ACTIVE', (data: any) => {
+        setNotification(`🐺 ${data.wolfKingName} is taking someone down with them...`);
+        setTimeout(() => setNotification(null), 10000);
+      });
+
       return () => {
         socket.off('SEER_RESULT');
         socket.off('HUNTER_REVENGE_TRIGGER');
         socket.off('HUNTER_REVENGE_ACTIVE');
+        socket.off('WOLF_KING_REVENGE_TRIGGER');
+        socket.off('WOLF_KING_REVENGE_ACTIVE');
       };
     }
   }, [socket]);
@@ -66,8 +80,10 @@ export const GameRoom: React.FC = () => {
       const newSelection = prev === id ? null : id;
 
       // Send real-time werewolf selection if this is a werewolf during night phase
-      if (me?.role?.type === RoleType.WEREWOLF && gameState.phase === GamePhase.NIGHT) {
-        sendWerewolfSelection(newSelection || ''); // Send empty string for deselection
+      if (me?.role?.type === RoleType.WEREWOLF || me?.role?.type === RoleType.WOLFKING) {
+        if (gameState.phase === GamePhase.NIGHT) {
+          sendWerewolfSelection(newSelection || ''); // Send empty string for deselection
+        }
       }
 
       return newSelection;
@@ -83,6 +99,16 @@ export const GameRoom: React.FC = () => {
       setShowHunterRevenge(false);
       setHunterRevengeData(null);
       setDebugShowModal(false); // DEBUG
+    }, 0);
+  };
+
+  const handleWolfKingRevenge = (targetId: string | null) => {
+    if (targetId !== null) {
+      sendWolfKingRevenge(targetId);
+    }
+    setTimeout(() => {
+      setShowWolfKingRevenge(false);
+      setWolfKingRevengeData(null);
     }, 0);
   };
 
@@ -128,6 +154,16 @@ export const GameRoom: React.FC = () => {
           eligibleTargets={debugShowModal ? mockHunterRevengeData.eligibleTargets : hunterRevengeData.eligibleTargets}
           timeLimit={debugShowModal ? mockHunterRevengeData.timeLimit : hunterRevengeData.timeLimit}
           onConfirm={handleHunterRevenge}
+        />
+      ) : null}
+
+      {showWolfKingRevenge && wolfKingRevengeData ? (
+        <HunterRevengeModal
+          eligibleTargets={wolfKingRevengeData.eligibleTargets.map((p: any) => ({ id: p.id, name: p.name }))}
+          timeLimit={wolfKingRevengeData.timeLimit}
+          onConfirm={handleWolfKingRevenge}
+          title="Wolf King's Revenge"
+          confirmText="Take Them Down"
         />
       ) : null}
 

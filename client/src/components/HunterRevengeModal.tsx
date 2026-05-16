@@ -9,12 +9,16 @@ interface HunterRevengeModalProps {
   eligibleTargets: Player[];
   timeLimit: number; // in milliseconds
   onConfirm: (targetId: string | null) => void;
+  title?: string;
+  confirmText?: string;
 }
 
 export const HunterRevengeModal: React.FC<HunterRevengeModalProps> = ({
   eligibleTargets,
   timeLimit,
-  onConfirm
+  onConfirm,
+  title = "Hunter's Revenge",
+  confirmText = "Take Your Shot"
 }) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedRef = React.useRef<string | null>(null);
@@ -76,7 +80,7 @@ export const HunterRevengeModal: React.FC<HunterRevengeModalProps> = ({
           {/* Header */}
           <div className="text-center mb-6">
             <h2 className="text-4xl font-bold text-red-500 mb-2 animate-pulse">
-              🎯 Hunter's Final Shot
+              {title === "Hunter's Revenge" ? '🎯 Hunter\'s Final Shot' : '🐺 Wolf King\'s Revenge'}
             </h2>
             <p className="text-xl text-gray-200 mb-4">
               You've been eliminated! Choose one player to take down with you.
@@ -141,7 +145,7 @@ export const HunterRevengeModal: React.FC<HunterRevengeModalProps> = ({
               }
             `}
           >
-            {selectedId ? '🏹 Take Your Shot' : 'Select a Target'}
+            {selectedId ? (title === "Hunter's Revenge" ? '🏹 Take Your Shot' : '🐺 Take Them Down') : 'Select a Target'}
           </button>
           </div>
           {timeRemaining <= 10 && (

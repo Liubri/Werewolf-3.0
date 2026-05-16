@@ -96,7 +96,7 @@ io.on('connection', (socket) => {
   socket.on('werewolfSelectTarget', ({ targetId }) => {
     const game = gameManager.getGameBySocketId(socket.id);
     const player = gameManager.getPlayerBySocketId(socket.id);
-    if (game && player && player.role?.type === 'WEREWOLF') {
+    if (game && player && (player.role?.type === 'WEREWOLF' || player.role?.type === 'WOLFKING')) {
       // Treat empty string as null for deselection
       game.updateWerewolfTarget(player.id, targetId || null);
     }
@@ -115,6 +115,14 @@ io.on('connection', (socket) => {
     const player = gameManager.getPlayerBySocketId(socket.id);
     if (game && player) {
       game.handleHunterRevenge(player.id, targetId);
+    }
+  });
+
+  socket.on('wolfKingRevenge', ({ targetId }) => {
+    const game = gameManager.getGameBySocketId(socket.id);
+    const player = gameManager.getPlayerBySocketId(socket.id);
+    if (game && player) {
+      game.handleWolfKingRevenge(player.id, targetId);
     }
   });
 

@@ -60,6 +60,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
     FOOL: '',
     CROW: 'Curse',
     MIRACLEMERCHANT: '',
+    WOLFKING: 'Confirm Kill',
   };
 
   const roleType: RoleType = myPlayer.role!.type!; // non-null assertion
@@ -122,6 +123,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
           action: 'MERCHANT_GIVE',
           data: { abilityType: type }
         },
+        [RoleType.WOLFKING]: { action: 'KILL' },
       };
 
       const roleType = myPlayer.role?.type;

@@ -16,6 +16,7 @@ import { Gravedigger } from '../roles/Gravedigger';
 import { Fool } from '../roles/Fool';
 import { Crow } from '../roles/Crow';
 import { MiracleMerchant } from '../roles/MiracleMerchant';
+import { WolfKing } from '../roles/WolfKing';
 
 export class Game {
   id: string;
@@ -78,6 +79,12 @@ export class Game {
   merchantPoisonTargetId: string | null = null;
   merchantProtectedTargetId: string | null = null;
 
+  // Wolf King State
+  wolfKingId: string | null = null;
+  wolfKingRevengeActive: boolean = false;
+  wolfKingRevengePlayerId: string | null = null;
+  wolfKingRevengeTimeout: NodeJS.Timeout | null = null;
+
   constructor(id: string, hostId: string, onStateChange: any, onPrivateMessage: any) {
     this.id = id;
     this.hostId = hostId;
@@ -99,7 +106,8 @@ export class Game {
         [RoleType.GRAVEDIGGER]: 0,
         [RoleType.FOOL]: 0,
         [RoleType.CROW]: 0,
-        [RoleType.MIRACLEMERCHANT]: 1
+        [RoleType.MIRACLEMERCHANT]: 0,
+        [RoleType.WOLFKING]: 1
       }
     };
   }
@@ -160,6 +168,7 @@ export class Game {
     addRole(Fool, this.settings.roleCounts[RoleType.FOOL]);
     addRole(Crow, this.settings.roleCounts[RoleType.CROW]);
     addRole(MiracleMerchant, this.settings.roleCounts[RoleType.MIRACLEMERCHANT]);
+    addRole(WolfKing, this.settings.roleCounts[RoleType.WOLFKING]);
 
     // Fill rest with Villagers
     while (roleStack.length < playerIds.length) {
@@ -181,6 +190,8 @@ export class Game {
           this.knightId = pid;
         } else if (player.role.type === RoleType.MIRACLEMERCHANT) {
           this.miracleMerchantId = pid;
+        } else if (player.role.type === RoleType.WOLFKING) {
+          this.wolfKingId = pid;
         }
       }
     });
@@ -583,6 +594,20 @@ export class Game {
       return; // Don't transition to day yet, wait for Hunter revenge
     }
 
+    // Check if Wolf King died and trigger revenge
+    const wolfKingDied = this.wolfKingId && deadPlayers.has(this.wolfKingId);
+    const wolfKingPoisoned = this.wolfKingId && (
+      this.witchPoisonTarget === this.wolfKingId ||
+      this.merchantPoisonTargetId === this.wolfKingId
+    );
+    if (wolfKingDied && !wolfKingPoisoned) {
+      const wk = this.players.get(this.wolfKingId!);
+      if (wk?.role instanceof WolfKing && wk.role.canUseRevengeAbility) {
+        this.triggerWolfKingRevenge(this.wolfKingId!);
+        return; // Don't transition to day yet, wait for Wolf King revenge
+      }
+    }
+
     this.phase = GamePhase.DAY;
     this.broadcastState();
 
@@ -643,6 +668,13 @@ export class Game {
             this.dayVotes.clear();
             this.triggerHunterRevenge(target);
             return; // Don't transition to night yet, wait for Hunter revenge
+          }
+
+          // Check if Wolf King died and trigger revenge
+          if (p.role?.type === RoleType.WOLFKING && p.role instanceof WolfKing && p.role.canUseRevengeAbility) {
+            this.dayVotes.clear();
+            this.triggerWolfKingRevenge(target);
+            return; // Don't transition to night yet, wait for Wolf King revenge
           }
         }
       }
@@ -785,6 +817,13 @@ export class Game {
       const target = this.players.get(targetId);
       if (target && target.isAlive) {
         target.die();
+        // Chain: if Hunter shot Wolf King, trigger Wolf King revenge before phase transition
+        if (target.role instanceof WolfKing && target.role.canUseRevengeAbility) {
+          this.hunterRevengeActive = false;
+          this.hunterRevengePlayerId = null;
+          this.triggerWolfKingRevenge(targetId);
+          return;
+        }
       }
     }
 
@@ -798,6 +837,72 @@ export class Game {
     if (this.phase === GamePhase.NIGHT) {
       this.phase = GamePhase.DAY;
     } else if (this.phase === GamePhase.DAY) {
+      this.phase = GamePhase.NIGHT;
+      this.startNightPhase();
+    }
+
+    this.broadcastState();
+    this.checkWinCondition();
+  }
+
+  triggerWolfKingRevenge(wolfKingId: string) {
+    const wolfKing = this.players.get(wolfKingId);
+    if (!wolfKing) return;
+
+    this.wolfKingRevengeActive = true;
+    this.wolfKingRevengePlayerId = wolfKingId;
+
+    const eligibleTargets = Array.from(this.players.values())
+      .filter(p => p.isAlive && p.id !== wolfKingId);
+
+    this.onPrivateMessage(wolfKing.socketId, 'WOLF_KING_REVENGE_TRIGGER', {
+      eligibleTargets: eligibleTargets.map(p => ({ id: p.id, name: p.name })),
+      timeLimit: 30000
+    });
+
+    Array.from(this.players.values()).forEach(p => {
+      if (p.id !== wolfKingId) {
+        this.onPrivateMessage(p.socketId, 'WOLF_KING_REVENGE_ACTIVE', { wolfKingName: wolfKing.name });
+      }
+    });
+
+    this.wolfKingRevengeTimeout = setTimeout(() => {
+      this.completeWolfKingRevenge(wolfKingId, null);
+    }, 30000);
+
+    this.broadcastState();
+  }
+
+  handleWolfKingRevenge(wolfKingId: string, targetId: string | null) {
+    if (!this.wolfKingRevengeActive || this.wolfKingRevengePlayerId !== wolfKingId) return;
+    if (this.wolfKingRevengeTimeout) clearTimeout(this.wolfKingRevengeTimeout);
+    this.completeWolfKingRevenge(wolfKingId, targetId);
+  }
+
+  completeWolfKingRevenge(wolfKingId: string, targetId: string | null) {
+    const wolfKing = this.players.get(wolfKingId);
+    if (wolfKing?.role instanceof WolfKing) wolfKing.role.canUseRevengeAbility = false;
+
+    if (targetId) {
+      const target = this.players.get(targetId);
+      if (target?.isAlive) {
+        target.die();
+        // Chain: if Wolf King took out Hunter, trigger Hunter revenge before phase transition
+        if (target.role instanceof Hunter && target.role.canUseRevengeAbility) {
+          this.wolfKingRevengeActive = false;
+          this.wolfKingRevengePlayerId = null;
+          this.triggerHunterRevenge(targetId);
+          return;
+        }
+      }
+    }
+
+    this.wolfKingRevengeActive = false;
+    this.wolfKingRevengePlayerId = null;
+
+    if (this.phase === GamePhase.NIGHT) {
+      this.phase = GamePhase.DAY;
+    } else {
       this.phase = GamePhase.NIGHT;
       this.startNightPhase();
     }
