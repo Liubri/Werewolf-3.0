@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useSocket } from '../context/SocketContext';
 
+const DEBUG_AUTO_JOIN = true;
+
 export const Lobby: React.FC = () => {
   const { createGame, joinGame, gameState, startGame, isConnected, socketId } = useSocket();
   const [name, setName] = useState('');
@@ -65,53 +67,65 @@ export const Lobby: React.FC = () => {
           />
         </div>
 
-        {mode === 'MENU' && (
-          <div className="space-y-4">
-            <button 
-              onClick={() => name && createGame(name)}
-              disabled={!name}
-              className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold py-3 rounded transition"
-            >
-              Create Game
-            </button>
-            <button 
-              onClick={() => setMode('JOIN')}
-              disabled={!name}
-              className="w-full bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white font-bold py-3 rounded transition"
-            >
-              Join Game
-            </button>
-          </div>
-        )}
+        {DEBUG_AUTO_JOIN ? (
+          <button
+            onClick={() => name && createGame(name)}
+            disabled={!name}
+            className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold py-3 rounded transition"
+          >
+            Enter Game
+          </button>
+        ) : (
+          <>
+            {mode === 'MENU' && (
+              <div className="space-y-4">
+                <button
+                  onClick={() => name && createGame(name)}
+                  disabled={!name}
+                  className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold py-3 rounded transition"
+                >
+                  Create Game
+                </button>
+                <button
+                  onClick={() => setMode('JOIN')}
+                  disabled={!name}
+                  className="w-full bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white font-bold py-3 rounded transition"
+                >
+                  Join Game
+                </button>
+              </div>
+            )}
 
-        {mode === 'JOIN' && (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Game Code</label>
-              <input 
-                type="text" 
-                value={gameIdInput}
-                onChange={(e) => setGameIdInput(e.target.value.toUpperCase())}
-                className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white focus:outline-none focus:border-red-500"
-                placeholder="Enter 6-letter code"
-              />
-            </div>
-            <div className="flex space-x-4">
-              <button 
-                onClick={() => setMode('MENU')}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded transition"
-              >
-                Back
-              </button>
-              <button 
-                onClick={() => name && gameIdInput && joinGame(gameIdInput, name)}
-                disabled={!name || !gameIdInput}
-                className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold py-3 rounded transition"
-              >
-                Join
-              </button>
-            </div>
-          </div>
+            {mode === 'JOIN' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Game Code</label>
+                  <input
+                    type="text"
+                    value={gameIdInput}
+                    onChange={(e) => setGameIdInput(e.target.value.toUpperCase())}
+                    className="w-full bg-gray-800 border border-gray-700 rounded p-3 text-white focus:outline-none focus:border-red-500"
+                    placeholder="Enter 6-letter code"
+                  />
+                </div>
+                <div className="flex space-x-4">
+                  <button
+                    onClick={() => setMode('MENU')}
+                    className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded transition"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => name && gameIdInput && joinGame(gameIdInput, name)}
+                    disabled={!name || !gameIdInput}
+                    className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold py-3 rounded transition"
+                  >
+                    Join
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

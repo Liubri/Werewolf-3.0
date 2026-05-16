@@ -2,6 +2,9 @@ import { Game } from './Game';
 import { Player } from './Player';
 import { v4 as uuidv4 } from 'uuid';
 
+const DEBUG_AUTO_JOIN = true;
+const DEBUG_GAME_ID = 'DEBUG0';
+
 export class GameManager {
   games: Map<string, Game> = new Map();
   io: any;
@@ -11,7 +14,17 @@ export class GameManager {
   }
 
   createGame(hostName: string, socketId: string): string {
-    const gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    if (DEBUG_AUTO_JOIN) {
+      // If debug game already exists, just add this player to it
+      if (this.games.has(DEBUG_GAME_ID)) {
+        this.joinGame(DEBUG_GAME_ID, hostName, socketId);
+        return DEBUG_GAME_ID;
+      }
+    }
+
+    const gameId = DEBUG_AUTO_JOIN
+      ? DEBUG_GAME_ID
+      : Math.random().toString(36).substring(2, 8).toUpperCase();
     const hostPlayerId = uuidv4();
     
     const game = new Game(
