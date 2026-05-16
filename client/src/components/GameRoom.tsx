@@ -209,6 +209,9 @@ export const GameRoom: React.FC = () => {
           myId={me?.id || ''}
           disableSelfSelect={cannotSelfSelect(me?.role?.type)}
           werewolfTargets={gameState.werewolfTargets}
+          werewolfVotes={gameState.werewolfVotes}
+          nightKillTarget={gameState.nightKillTarget}
+          isNight={gameState.phase === GamePhase.NIGHT}
           disabledIds={(() => {
             const disabled: string[] = [];
 

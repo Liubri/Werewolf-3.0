@@ -96,8 +96,8 @@ export class Game {
         [RoleType.VILLAGER]: 1,
         [RoleType.SEER]: 0,
         [RoleType.WITCH]: 1,
-        [RoleType.DREAMKEEPER]: 0,
-        [RoleType.HUNTER]: 1,
+        [RoleType.DREAMKEEPER]: 1,
+        [RoleType.HUNTER]: 0,
         [RoleType.WOLFBEAUTY]: 0,
         [RoleType.MAGICIAN]: 0,
         [RoleType.GUARD]: 0,
@@ -248,7 +248,6 @@ export class Game {
   registerWerewolfVote(voterId: string, targetId: string) {
     console.log('Registering werewolf vote:', voterId, '->', targetId);
     this.werewolfVotes.set(voterId, targetId);
-    this.werewolfTargets.set(voterId, targetId); // Track individual targets for sharing
     this.resolveWerewolfKill();
     this.broadcastState();
   }
@@ -732,10 +731,26 @@ export class Game {
       }));
 
       // Convert werewolfTargets Map to object for JSON serialization
+      // Exclude werewolves who have already confirmed their kill (in werewolfVotes)
       const werewolfTargetsObj: Record<string, string> = {};
       this.werewolfTargets.forEach((targetId, werewolfId) => {
-        werewolfTargetsObj[werewolfId] = targetId;
+        if (!this.werewolfVotes.has(werewolfId)) {
+          werewolfTargetsObj[werewolfId] = targetId;
+        }
       });
+
+      // Convert werewolfVotes Map to object for JSON serialization
+      const werewolfVotesObj: Record<string, string> = {};
+      this.werewolfVotes.forEach((targetId, werewolfId) => {
+        werewolfVotesObj[werewolfId] = targetId;
+      });
+
+      // Witch sees nightKillTarget only after all alive werewolves have confirmed
+      const aliveWerewolves = Array.from(this.players.values()).filter(
+        p => p.isAlive && p.role?.team === Team.WEREWOLF
+      );
+      const allWerewolvesVoted = aliveWerewolves.length > 0 &&
+        aliveWerewolves.every(p => this.werewolfVotes.has(p.id));
 
       const state = {
         id: this.id,
@@ -743,11 +758,14 @@ export class Game {
         phase: this.phase,
         nightNumber: this.nightNumber,
         players: publicPlayers,
-        // Add other phase info
-        // Wolves see their target, Witch sees it too (to save)
-        nightKillTarget: (player.role?.team === Team.WEREWOLF || player.role?.type === RoleType.WITCH) ? this.nightKillTarget : null,
-        // Werewolves see all werewolf targets
+        // Werewolves always see nightKillTarget; witch sees it only once all werewolves have voted
+        nightKillTarget: (player.role?.team === Team.WEREWOLF ||
+          (player.role?.type === RoleType.WITCH && allWerewolvesVoted))
+          ? this.nightKillTarget : null,
+        // Werewolves see all werewolf real-time targets (before confirmation)
         werewolfTargets: player.role?.team === Team.WEREWOLF ? werewolfTargetsObj : null,
+        // Werewolves see all confirmed kills
+        werewolfVotes: player.role?.team === Team.WEREWOLF ? werewolfVotesObj : null,
         ...extraData
       };
 

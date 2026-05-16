@@ -7,13 +7,16 @@ interface PlayerGridProps {
   onSelect: (id: string) => void;
   myId: string;
   disableSelfSelect?: boolean; // For roles like Dreamkeeper that can't target themselves
-  werewolfTargets?: Record<string, string> | null; // werewolfId -> targetId
+  werewolfTargets?: Record<string, string> | null; // werewolfId -> targetId (real-time selections)
+  werewolfVotes?: Record<string, string> | null; // werewolfId -> targetId (confirmed kills)
+  nightKillTarget?: string | null; // The confirmed kill target (visible to Witch)
+  isNight?: boolean; // Whether it's the night phase
   disabledIds?: string[]; // Player IDs that cannot be selected (e.g., Magician's first target, Guard's last protected)
   seerResults?: Record<string, boolean>; // targetId -> isWerewolf
   nightStatus?: Record<string, { protected?: boolean; poisoned?: boolean; asleep?: boolean }>; // Optimistic UI updates
 }
 
-export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onSelect, myId, disableSelfSelect = false, werewolfTargets, disabledIds = [], seerResults = {}, nightStatus = {} }) => {
+export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onSelect, myId, disableSelfSelect = false, werewolfTargets, werewolfVotes, nightKillTarget, isNight = false, disabledIds = [], seerResults = {}, nightStatus = {} }) => {
   // Define colors for different werewolves
   const werewolfColors = [
     { ring: 'ring-red-500', bg: 'bg-red-500', text: 'text-red-500' },
@@ -26,14 +29,28 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onS
     { ring: 'ring-cyan-500', bg: 'bg-cyan-500', text: 'text-cyan-500' },
   ];
 
-  // Create a mapping of werewolf IDs to colors
+  // Create a mapping of werewolf IDs to colors using consistent hashing
+  // Each werewolf ID always gets the same color regardless of when they join
   const werewolfColorMap = new Map<string, typeof werewolfColors[0]>();
+  const getWerewolfColor = (id: string) => {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = ((hash << 5) - hash) + id.charCodeAt(i);
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return werewolfColors[Math.abs(hash) % werewolfColors.length];
+  };
+
+  const allWerewolfIds = new Set<string>();
   if (werewolfTargets) {
-    const werewolfIds = Object.keys(werewolfTargets);
-    werewolfIds.forEach((id, index) => {
-      werewolfColorMap.set(id, werewolfColors[index % werewolfColors.length]);
-    });
+    Object.keys(werewolfTargets).forEach(id => allWerewolfIds.add(id));
   }
+  if (werewolfVotes) {
+    Object.keys(werewolfVotes).forEach(id => allWerewolfIds.add(id));
+  }
+  allWerewolfIds.forEach(id => {
+    werewolfColorMap.set(id, getWerewolfColor(id));
+  });
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
@@ -44,26 +61,41 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onS
         const isInDisabledList = disabledIds.includes(player.id);
         const isDisabled = isDead || (disableSelfSelect && isMe) || isInDisabledList;
 
-        // Find which werewolves are targeting this player
-        const targetingWerewolves: Array<{ id: string; name: string; color: typeof werewolfColors[0] }> = [];
-        if (werewolfTargets) {
-          Object.entries(werewolfTargets).forEach(([werewolfId, targetId]) => {
+        // Helper to find werewolves targeting this player from a target map
+        const findWerewolvesTargeting = (targetMap: Record<string, string> | null | undefined) => {
+          const result: Array<{ id: string; name: string; color: typeof werewolfColors[0] }> = [];
+          if (!targetMap) return result;
+          Object.entries(targetMap).forEach(([werewolfId, targetId]) => {
             if (targetId === player.id) {
               const werewolfPlayer = players.find(p => p.id === werewolfId);
               const color = werewolfColorMap.get(werewolfId) || werewolfColors[0];
               if (werewolfPlayer) {
-                targetingWerewolves.push({ id: werewolfId, name: werewolfPlayer.name, color });
+                result.push({ id: werewolfId, name: werewolfPlayer.name, color });
               }
             }
           });
-        }
+          return result;
+        };
+
+        const targetingWerewolves = findWerewolvesTargeting(werewolfTargets); // Real-time selections
+        const votingWerewolves = findWerewolvesTargeting(werewolfVotes); // Confirmed kills
+
+        // Show kill target indicator for non-werewolf viewers (Witch) during night phase
+        const isKillTarget = isNight && !werewolfTargets && !!nightKillTarget && player.id === nightKillTarget;
 
         // Build ring classes for werewolf targets
+        // Prioritize confirmed votes, then show real-time selections
         let ringClasses = '';
-        if (targetingWerewolves.length > 0) {
-          // For multiple rings, we'll use the first werewolf's color and add a special style
+        if (votingWerewolves.length > 0) {
+          // Show confirmed kill with thicker ring
+          const primaryColor = votingWerewolves[0].color.ring;
+          ringClasses = `ring-8 ${primaryColor}`;
+        } else if (targetingWerewolves.length > 0) {
+          // Show real-time selection with thinner ring
           const primaryColor = targetingWerewolves[0].color.ring;
           ringClasses = `ring-4 ${primaryColor}`;
+        } else if (isKillTarget) {
+          ringClasses = 'ring-4 ring-red-500';
         }
 
         // Override with player's own selection
@@ -92,6 +124,11 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onS
 
             {/* Night Status Indicators */}
             <div className="flex gap-1 mt-1">
+              {isKillTarget && !isDead && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-red-700 text-white font-semibold" title="Targeted by werewolves">
+                  ⚔️ Target
+                </span>
+              )}
               {((player.protected && player.protected === myId) && !isDead) && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-blue-600 text-white font-semibold" title="Protected">
                   🛡️
@@ -124,13 +161,24 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onS
               )}
             </div>
 
-            {/* Werewolf name labels */}
-            {targetingWerewolves.length > 0 && !isDead && (
+            {/* Werewolf selections (confirmed and real-time) */}
+            {(votingWerewolves.length > 0 || targetingWerewolves.length > 0) && !isDead && (
               <div className="mt-1 flex flex-wrap gap-1 justify-center">
+                {/* Confirmed kills first (with checkmark and border) */}
+                {votingWerewolves.map((werewolf) => (
+                  <span
+                    key={werewolf.id}
+                    className={`text-xs px-2 py-0.5 rounded-full ${werewolf.color.bg} text-white font-semibold border-2 border-white`}
+                    title="Confirmed kill"
+                  >
+                    ✓ {werewolf.name}
+                  </span>
+                ))}
+                {/* Real-time selections (no checkmark, reduced opacity) */}
                 {targetingWerewolves.map((werewolf) => (
                   <span
                     key={werewolf.id}
-                    className={`text-xs px-2 py-0.5 rounded-full ${werewolf.color.bg} text-white font-semibold`}
+                    className={`text-xs px-2 py-0.5 rounded-full ${werewolf.color.bg} text-white font-semibold opacity-70`}
                   >
                     {werewolf.name}
                   </span>

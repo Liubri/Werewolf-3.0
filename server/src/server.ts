@@ -65,7 +65,7 @@ io.on('connection', (socket) => {
       } else if (data.action === 'MERCHANT_GUARD' && player.merchantGuard) {
         game.handleMerchantGuard(data.targetId);
       } else if (player.role) {
-        if (player.role.type === 'WEREWOLF') {
+        if (player.role.type === 'WEREWOLF' || player.role.type === 'WOLFKING') {
         player.role.handleNightAction(game, player, data.targetId);
       } else if (player.role.type === 'SEER') {
         player.role.handleNightAction(game, player, data.targetId);

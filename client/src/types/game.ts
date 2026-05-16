@@ -69,6 +69,7 @@ export interface GameState {
   nightNumber: number;
   players: Player[];
   nightKillTarget?: string | null;
-  werewolfTargets?: Record<string, string> | null; // werewolfId -> targetId
+  werewolfTargets?: Record<string, string> | null; // werewolfId -> targetId (real-time selections)
+  werewolfVotes?: Record<string, string> | null; // werewolfId -> targetId (confirmed kills)
   winner?: Team;
 }
