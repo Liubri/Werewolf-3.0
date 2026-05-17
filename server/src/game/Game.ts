@@ -17,6 +17,8 @@ import { Fool } from '../roles/Fool';
 import { Crow } from '../roles/Crow';
 import { MiracleMerchant } from '../roles/MiracleMerchant';
 import { WolfKing } from '../roles/WolfKing';
+import { WhiteMaiden } from '../roles/WhiteMaiden';
+import { WolfWitch } from '../roles/WolfWitch';
 
 export class Game {
   id: string;
@@ -85,6 +87,12 @@ export class Game {
   wolfKingRevengePlayerId: string | null = null;
   wolfKingRevengeTimeout: NodeJS.Timeout | null = null;
 
+  // White Maiden State
+  whiteMaidenTarget: string | null = null;
+
+  // Wolf Witch State
+  wolfWitchTarget: string | null = null;
+
   constructor(id: string, hostId: string, onStateChange: any, onPrivateMessage: any) {
     this.id = id;
     this.hostId = hostId;
@@ -96,7 +104,7 @@ export class Game {
         [RoleType.VILLAGER]: 1,
         [RoleType.SEER]: 0,
         [RoleType.WITCH]: 1,
-        [RoleType.DREAMKEEPER]: 1,
+        [RoleType.DREAMKEEPER]: 0,
         [RoleType.HUNTER]: 0,
         [RoleType.WOLFBEAUTY]: 0,
         [RoleType.MAGICIAN]: 0,
@@ -107,7 +115,9 @@ export class Game {
         [RoleType.FOOL]: 0,
         [RoleType.CROW]: 0,
         [RoleType.MIRACLEMERCHANT]: 0,
-        [RoleType.WOLFKING]: 1
+        [RoleType.WOLFKING]: 0,
+        [RoleType.WHITEMAIDEN]: 1,
+        [RoleType.WOLFWITCH]: 1
       }
     };
   }
@@ -169,6 +179,8 @@ export class Game {
     addRole(Crow, this.settings.roleCounts[RoleType.CROW]);
     addRole(MiracleMerchant, this.settings.roleCounts[RoleType.MIRACLEMERCHANT]);
     addRole(WolfKing, this.settings.roleCounts[RoleType.WOLFKING]);
+    addRole(WhiteMaiden, this.settings.roleCounts[RoleType.WHITEMAIDEN]);
+    addRole(WolfWitch, this.settings.roleCounts[RoleType.WOLFWITCH]);
 
     // Fill rest with Villagers
     while (roleStack.length < playerIds.length) {
@@ -218,6 +230,8 @@ export class Game {
     this.merchantPoisonTargetId = null;
     this.merchantProtectedTargetId = null;
     this.swappedIds = null; // Reset swap for new night (but keep history)
+    this.whiteMaidenTarget = null;
+    this.wolfWitchTarget = null;
     this.players.forEach(p => p.resetNightStatus());
 
     // Handle Dreamkeeper auto-targeting at the end of night if no choice made
@@ -450,6 +464,54 @@ export class Game {
     }
   }
 
+  whiteMaidenAction(playerId: string, targetId: string) {
+    const resolvedTarget = this.swappedTargetId(targetId);
+    const maiden = this.players.get(playerId);
+    const target = this.players.get(resolvedTarget);
+    if (!maiden || !target?.role) return;
+
+    const isWerewolf = target.role.team === Team.WEREWOLF;
+    const willBeEliminated = this.nightNumber >= 2 && isWerewolf;
+
+    if (willBeEliminated) {
+      this.whiteMaidenTarget = resolvedTarget;
+    }
+
+    this.onPrivateMessage(maiden.socketId, 'WHITE_MAIDEN_RESULT', {
+      targetId: resolvedTarget,
+      targetName: target.name,
+      roleName: target.role.name,
+      isWerewolf,
+      willBeEliminated
+    });
+    this.broadcastState();
+  }
+
+  wolfWitchAction(playerId: string, targetId: string) {
+    const resolvedTarget = this.swappedTargetId(targetId);
+    const witch = this.players.get(playerId);
+    const target = this.players.get(resolvedTarget);
+    if (!witch || !target?.role) return;
+
+    // Wolf Witch can only check non-werewolf players
+    if (target.role.team === Team.WEREWOLF) return;
+
+    const isWhiteMaiden = target.role.type === RoleType.WHITEMAIDEN;
+    const willBeEliminated = this.nightNumber >= 2 && isWhiteMaiden;
+
+    if (willBeEliminated) {
+      this.wolfWitchTarget = resolvedTarget;
+    }
+
+    this.onPrivateMessage(witch.socketId, 'WOLF_WITCH_RESULT', {
+      targetId: resolvedTarget,
+      targetName: target.name,
+      roleName: target.role.name,
+      willBeEliminated
+    });
+    this.broadcastState();
+  }
+
   demonHunterAction(targetId: string) {
     const resolvedTarget = this.swappedTargetId(targetId);
     const player = this.players.get(resolvedTarget)
@@ -467,7 +529,7 @@ export class Game {
 
     if (this.wolfBeautyId === resolvedTarget) {
       // Remove charm if Knight targets Wolf Beauty
-      this.charmedTarget = null; 
+      this.charmedTarget = null;
       const wolfBeauty = this.players.get(this.wolfBeautyId);
       wolfBeauty?.die();
     } else if (player?.isBadTeam()) {
@@ -478,7 +540,19 @@ export class Game {
     }
     this.broadcastState();
   }
-  
+
+  selfDestructAbility(playerId: string) {
+    const player = this.players.get(playerId);
+    if (!player || !player.isAlive) return;
+
+    player.die();
+    this.dayVotes.clear();
+    this.phase = GamePhase.NIGHT;
+    this.startNightPhase();
+    this.broadcastState();
+    this.checkWinCondition();
+  }
+
 
   endNight() {
     this.werewolfTargets.clear();
@@ -539,6 +613,16 @@ export class Game {
     // Witch save target
     if (this.witchSaveUsedThisTurn && this.savedTarget) {
       deadPlayers.delete(this.savedTarget);
+    }
+
+    // White Maiden kill — bypasses protection and witch save
+    if (this.whiteMaidenTarget) {
+      deadPlayers.add(this.whiteMaidenTarget);
+    }
+
+    // Wolf Witch kill — bypasses protection and witch save
+    if (this.wolfWitchTarget) {
+      deadPlayers.add(this.wolfWitchTarget);
     }
 
     //If witch saved and guard protected save target

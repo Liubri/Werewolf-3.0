@@ -87,6 +87,10 @@ io.on('connection', (socket) => {
         player.role.handleNightAction(game, player, data.targetId);
       } else if (player.role.type === 'MIRACLEMERCHANT') {
         player.role.handleNightAction(game, player, data.targetId, data);
+      } else if (player.role.type === 'WHITEMAIDEN') {
+        player.role.handleNightAction(game, player, data.targetId);
+      } else if (player.role.type === 'WOLFWITCH') {
+        player.role.handleNightAction(game, player, data.targetId, data);
       }
       }
     }
@@ -123,6 +127,14 @@ io.on('connection', (socket) => {
     const player = gameManager.getPlayerBySocketId(socket.id);
     if (game && player) {
       game.handleWolfKingRevenge(player.id, targetId);
+    }
+  });
+
+  socket.on('selfDestruct', () => {
+    const game = gameManager.getGameBySocketId(socket.id);
+    const player = gameManager.getPlayerBySocketId(socket.id);
+    if (game && player) {
+      game.selfDestructAbility(player.id);
     }
   });
 

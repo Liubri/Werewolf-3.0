@@ -7,16 +7,19 @@ interface PlayerGridProps {
   onSelect: (id: string) => void;
   myId: string;
   disableSelfSelect?: boolean; // For roles like Dreamkeeper that can't target themselves
+  canSeeWerewolves?: boolean; // Whether this player can see other werewolves
   werewolfTargets?: Record<string, string> | null; // werewolfId -> targetId (real-time selections)
   werewolfVotes?: Record<string, string> | null; // werewolfId -> targetId (confirmed kills)
   nightKillTarget?: string | null; // The confirmed kill target (visible to Witch)
   isNight?: boolean; // Whether it's the night phase
   disabledIds?: string[]; // Player IDs that cannot be selected (e.g., Magician's first target, Guard's last protected)
   seerResults?: Record<string, boolean>; // targetId -> isWerewolf
+  whiteMaidenResults?: Record<string, { roleName: string; isWerewolf: boolean }>; // targetId -> { roleName, isWerewolf }
+  wolfWitchResults?: Record<string, string>; // targetId -> roleName
   nightStatus?: Record<string, { protected?: boolean; poisoned?: boolean; asleep?: boolean }>; // Optimistic UI updates
 }
 
-export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onSelect, myId, disableSelfSelect = false, werewolfTargets, werewolfVotes, nightKillTarget, isNight = false, disabledIds = [], seerResults = {}, nightStatus = {} }) => {
+export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onSelect, myId, disableSelfSelect = false, canSeeWerewolves = false, werewolfTargets, werewolfVotes, nightKillTarget, isNight = false, disabledIds = [], seerResults = {}, whiteMaidenResults = {}, wolfWitchResults = {}, nightStatus = {} }) => {
   // Define colors for different werewolves
   const werewolfColors = [
     { ring: 'ring-red-500', bg: 'bg-red-500', text: 'text-red-500' },
@@ -96,6 +99,9 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onS
           ringClasses = `ring-4 ${primaryColor}`;
         } else if (isKillTarget) {
           ringClasses = 'ring-4 ring-red-500';
+        } else if (canSeeWerewolves && player.role?.team === 'WEREWOLF' && player.id !== myId) {
+          // Show red outline for other werewolves visible to this player
+          ringClasses = 'ring-2 ring-red-500';
         }
 
         // Override with player's own selection
@@ -225,6 +231,47 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({ players, selectedId, onS
                     ${seerResults[player.id] ? 'text-red-500' : 'text-green-400'}
                   `}>
                     {seerResults[player.id] ? 'BAD' : 'GOOD'}
+                  </span>
+                </div>
+              </>
+            )}
+
+            {/* White Maiden Results Indicator */}
+            {whiteMaidenResults && whiteMaidenResults[player.id] !== undefined && !isDead && (
+              <>
+                <div className="absolute top-2 right-2">
+                  {whiteMaidenResults[player.id].isWerewolf ? (
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold border-2 border-white shadow-md" title="Werewolf">
+                      W
+                    </span>
+                  ) : (
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500 text-white text-xs font-bold border-2 border-white shadow-md" title="Good">
+                      {whiteMaidenResults[player.id].roleName.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <span className={`
+                    bg-black bg-opacity-90 text-xs px-3 py-1.5 rounded-lg font-bold shadow-lg transform translate-y-8
+                    ${whiteMaidenResults[player.id].isWerewolf ? 'text-red-500' : 'text-green-400'}
+                  `}>
+                    {whiteMaidenResults[player.id].roleName}
+                  </span>
+                </div>
+              </>
+            )}
+
+            {/* Wolf Witch Results Indicator */}
+            {wolfWitchResults && wolfWitchResults[player.id] !== undefined && !isDead && (
+              <>
+                <div className="absolute top-2 right-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-fuchsia-700 text-white text-xs font-bold border-2 border-white shadow-md" title={wolfWitchResults[player.id]}>
+                    {wolfWitchResults[player.id].slice(0, 1).toUpperCase()}
+                  </span>
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <span className="bg-black bg-opacity-90 text-fuchsia-400 text-xs px-3 py-1.5 rounded-lg font-bold shadow-lg transform translate-y-8">
+                    {wolfWitchResults[player.id]}
                   </span>
                 </div>
               </>

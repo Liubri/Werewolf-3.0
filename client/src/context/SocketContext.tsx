@@ -17,6 +17,7 @@ interface SocketContextType {
   sendHunterRevenge: (targetId: string) => void;
   sendWolfKingRevenge: (targetId: string) => void;
   sendWerewolfSelection: (targetId: string) => void; // Real-time selection
+  sendSelfDestruct: () => void;
   nextPhase: () => void; // Debug
 }
 
@@ -89,17 +90,21 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const sendWerewolfSelection = (targetId: string) => {
     socket?.emit('werewolfSelectTarget', { targetId });
   };
-  
+
+  const sendSelfDestruct = () => {
+    socket?.emit('selfDestruct');
+  };
+
   const nextPhase = () => {
     socket?.emit('nextPhase');
   }
 
   return (
-    <SocketContext.Provider value={{ 
-      socket, 
+    <SocketContext.Provider value={{
+      socket,
       socketId,
-      gameState, 
-      isConnected, 
+      gameState,
+      isConnected,
       createGame,
       joinGame,
       startGame,
@@ -108,6 +113,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       sendHunterRevenge,
       sendWolfKingRevenge,
       sendWerewolfSelection,
+      sendSelfDestruct,
       nextPhase
     }}>
       {children}

@@ -10,7 +10,7 @@ interface ActionPanelProps {
   setNightStatus: React.Dispatch<React.SetStateAction<Record<string, { protected?: boolean; poisoned?: boolean; asleep?: boolean }>>>;
 }
 export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, secondTarget, setSecondTarget, setNightStatus: setNightStatus }) => {
-  const { gameState, sendNightAction, sendVote, nextPhase } = useSocket();
+  const { gameState, sendNightAction, sendVote, nextPhase, sendSelfDestruct } = useSocket();
   const [clicked, setClicked] = useState(false);
   const [clicked_2, setClicked_2] = useState(false);
   const [merchantClicked, setMerchantClicked] = useState(false);
@@ -36,11 +36,21 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
     );
   }
 
+  const rolesActivateFromNight2 = new Set([
+    RoleType.DEMONHUNTER,
+    RoleType.WHITEMAIDEN,
+    RoleType.WOLFWITCH,
+  ]);
+
+  const rolesWithSelfDestruct = new Set([
+    RoleType.WOLFWITCH,
+  ]);
+
   function isButtonDisabled() {
     if (clicked) return true;
     if (!selectedId) return true;
     if (myPlayer.role?.type === RoleType.VILLAGER && isNight) return true;
-    if (myPlayer.role?.type === RoleType.DEMONHUNTER && nightNumber < 2) return true;
+    if (rolesActivateFromNight2.has(myPlayer.role?.type as RoleType) && nightNumber < 2) return true;
     return false;
   }
 
@@ -61,6 +71,8 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
     CROW: 'Curse',
     MIRACLEMERCHANT: '',
     WOLFKING: 'Confirm Kill',
+    WHITEMAIDEN: 'Reveal',
+    WOLFWITCH: 'Confirm Kill',
   };
 
   const roleType: RoleType = myPlayer.role!.type!; // non-null assertion
@@ -95,8 +107,8 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
           statusEffect: { protected: true }
         },
         [RoleType.WOLFBEAUTY]: {
-          action: 'CHARM',
-          data: { charmType: type ?? 'CHARM' }
+          action: 'KILL',
+          data: type ? { actionType: type } : undefined
         },
         [RoleType.MAGICIAN]: {
           action: 'SWAP',
@@ -124,6 +136,11 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
           data: { abilityType: type }
         },
         [RoleType.WOLFKING]: { action: 'KILL' },
+        [RoleType.WHITEMAIDEN]: { action: 'CHECK' },
+        [RoleType.WOLFWITCH]: {
+          action: 'KILL',
+          data: type ? { actionType: type } : undefined
+        },
       };
 
       const roleType = myPlayer.role?.type;
@@ -228,6 +245,19 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
             </button>
           )}
 
+          {isNight && myPlayer.role?.type === RoleType.WOLFWITCH && (
+            <button
+              onClick={() => {
+                handleAction('REVEAL')
+                setClicked_2(true)
+              }}
+              disabled={clicked_2 || !selectedId || isDay}
+              className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Reveal
+            </button>
+          )}
+
           {isNight && myPlayer?.merchantPoison && (
             <button
               onClick={() => {
@@ -270,6 +300,15 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({ selectedId, myPlayer, 
               className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Guard
+            </button>
+          )}
+
+          {gameState.phase === GamePhase.DAY && rolesWithSelfDestruct.has(myPlayer.role?.type as RoleType) && (
+            <button
+              onClick={sendSelfDestruct}
+              className="bg-fuchsia-700 hover:bg-fuchsia-800 text-white font-bold py-2 px-6 rounded"
+            >
+              Self-Destruct
             </button>
           )}
 

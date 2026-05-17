@@ -27,7 +27,9 @@ export enum RoleType {
   FOOL = 'FOOL',
   CROW = 'CROW',
   MIRACLEMERCHANT = 'MIRACLEMERCHANT',
-  WOLFKING = 'WOLFKING'
+  WOLFKING = 'WOLFKING',
+  WHITEMAIDEN = 'WHITEMAIDEN',
+  WOLFWITCH = 'WOLFWITCH'
 }
 
 export interface GameSettings {

@@ -20,6 +20,8 @@ export const GameRoom: React.FC = () => {
   const [debugShowModal, setDebugShowModal] = useState(false); // DEBUG
   const [secondTarget, setSecondTarget] = useState<string | null>(null); // For Magician's first target
   const [seerResults, setSeerResults] = useState<Record<string, boolean>>({}); // targetId -> isWerewolf
+  const [whiteMaidenResults, setWhiteMaidenResults] = useState<Record<string, { roleName: string; isWerewolf: boolean }>>({}); // targetId -> { roleName, isWerewolf }
+  const [wolfWitchResults, setWolfWitchResults] = useState<Record<string, string>>({}); // targetId -> roleName
   const [nightStatus, setNightStatus] = useState<Record<string, { protected?: boolean; poisoned?: boolean; asleep?: boolean }>>({}); // Optimistic UI updates
 
   useEffect(() => {
@@ -55,12 +57,32 @@ export const GameRoom: React.FC = () => {
         setTimeout(() => setNotification(null), 10000);
       });
 
+      socket.on('WHITE_MAIDEN_RESULT', (data: any) => {
+        setNotification(`White Maiden: ${data.targetName} is a ${data.isWerewolf ? 'WEREWOLF — eliminated!' : data.roleName}`);
+        setWhiteMaidenResults(prev => ({
+          ...prev,
+          [data.targetId]: { roleName: data.roleName, isWerewolf: data.isWerewolf }
+        }));
+        setTimeout(() => setNotification(null), 8000);
+      });
+
+      socket.on('WOLF_WITCH_RESULT', (data: any) => {
+        setNotification(`Wolf Witch: ${data.targetName} is a ${data.roleName}${data.willBeEliminated ? ' — eliminated!' : ''}`);
+        setWolfWitchResults(prev => ({
+          ...prev,
+          [data.targetId]: data.roleName
+        }));
+        setTimeout(() => setNotification(null), 8000);
+      });
+
       return () => {
         socket.off('SEER_RESULT');
         socket.off('HUNTER_REVENGE_TRIGGER');
         socket.off('HUNTER_REVENGE_ACTIVE');
         socket.off('WOLF_KING_REVENGE_TRIGGER');
         socket.off('WOLF_KING_REVENGE_ACTIVE');
+        socket.off('WHITE_MAIDEN_RESULT');
+        socket.off('WOLF_WITCH_RESULT');
       };
     }
   }, [socket]);
@@ -130,6 +152,13 @@ export const GameRoom: React.FC = () => {
     RoleType.DREAMKEEPER,
     RoleType.DEMONHUNTER,
     // add more roles here easily
+  ]);
+
+  const canSeeOtherWerewolves = new Set([
+    RoleType.WEREWOLF,
+    RoleType.WOLFKING,
+    RoleType.WOLFWITCH,
+    RoleType.WOLFBEAUTY,
   ]);
 
   function cannotSelfSelect(roleType?: RoleType): boolean {
@@ -208,6 +237,7 @@ export const GameRoom: React.FC = () => {
           onSelect={toggleSelect}
           myId={me?.id || ''}
           disableSelfSelect={cannotSelfSelect(me?.role?.type)}
+          canSeeWerewolves={canSeeOtherWerewolves.has(me?.role?.type as RoleType)}
           werewolfTargets={gameState.werewolfTargets}
           werewolfVotes={gameState.werewolfVotes}
           nightKillTarget={gameState.nightKillTarget}
@@ -243,6 +273,8 @@ export const GameRoom: React.FC = () => {
             return disabled;
           })()}
           seerResults={seerResults}
+          whiteMaidenResults={whiteMaidenResults}
+          wolfWitchResults={wolfWitchResults}
           nightStatus={nightStatus}
         />
       </div>
